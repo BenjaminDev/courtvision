@@ -9,10 +9,10 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
   };
 
-  
+
   # Flake outputs
   outputs = { self, nixpkgs }:
-    
+
     let
       # Systems supported
       allSystems = [
@@ -49,9 +49,9 @@
               ]))
             ];
           };
-        
+
       });
       # ffmpeg = pkgs.ffmpeg;
-      
+
     };
 }
