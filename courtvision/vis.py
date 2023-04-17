@@ -27,13 +27,17 @@ def plot_3d_points(
     y,
     z,
     plt_axis: None | Axes3D = None,
+    colors: None | list = None,
     view_init: tuple[float, float, float] = (90.0, 0.0, 0.0),
 ) -> Axes3D:
     if plt_axis is None:
         fig = plt.figure()
         plt_axis = fig.add_subplot(111, projection="3d")
     # plot the points
-    plt_axis.scatter(x, y, z, c="y")
+    if colors is not None and len(colors) == len(x):
+        plt_axis.scatter(x, y, z, c=colors)
+    else:
+        plt_axis.scatter(x, y, z, c="y")
     # set the axis labels
     plt_axis.set_xlabel("X")
     plt_axis.set_ylabel("Y")

@@ -52,42 +52,42 @@ class PadelCourt:
     @classmethod
     @property
     def front_left(cls):
-        return (0.0, cls.length)
-
-    @classmethod
-    @property
-    def front_right(cls):
-        return (cls.width, cls.length)
-
-    @classmethod
-    @property
-    def back_left(cls):
         return (0.0, 0.0)
 
     @classmethod
     @property
+    def front_right(cls):
+        return (cls.width, 0)
+
+    @classmethod
+    @property
+    def back_left(cls):
+        return (0.0, cls.length)
+
+    @classmethod
+    @property
     def back_right(cls):
-        return (cls.width, 0.0)
+        return (cls.width, cls.length)
 
     @classmethod
     @property
     def left_near_serve_line(cls):
-        return (0.0, cls.length - cls.serve_line_from_back_line)
-
-    @classmethod
-    @property
-    def right_near_serve_line(cls):
-        return (cls.width, cls.length - cls.serve_line_from_back_line)
-
-    @classmethod
-    @property
-    def left_far_serve_line(cls):
         return (0.0, cls.serve_line_from_back_line)
 
     @classmethod
     @property
-    def right_far_serve_line(cls):
+    def right_near_serve_line(cls):
         return (cls.width, cls.serve_line_from_back_line)
+
+    @classmethod
+    @property
+    def left_far_serve_line(cls):
+        return (0.0, cls.length - cls.serve_line_from_back_line)
+
+    @classmethod
+    @property
+    def right_far_serve_line(cls):
+        return (cls.width, cls.length - cls.serve_line_from_back_line)
 
     # Normalised:
     @classmethod
@@ -115,45 +115,54 @@ class PadelCourt:
     @classmethod
     @property
     def front_left_n(cls):
-        return (0.0, cls.length / cls.length)
+        return (cls.front_left[0] / cls.width, cls.front_left[1] / cls.length)
 
     @classmethod
     @property
     def front_right_n(cls):
-        return (cls.width / cls.width, cls.length / cls.length)
+        return (cls.front_right[0] / cls.width, cls.front_right[1] / cls.length)
 
     @classmethod
     @property
     def back_left_n(cls):
-        return (0.0, 0.0)
+        return (cls.back_left[0] / cls.width, cls.back_left[1] / cls.length)
 
     @classmethod
     @property
     def back_right_n(cls):
-        return (cls.width / cls.width, 0.0)
+        return (cls.back_right[0] / cls.width, cls.back_right[1] / cls.length)
 
     @classmethod
     @property
     def left_near_serve_line_n(cls):
-        return (0.0, (cls.length - cls.serve_line_from_back_line) / cls.length)
+        return (
+            cls.left_near_serve_line[0] / cls.width,
+            cls.left_near_serve_line[1] / cls.length,
+        )
 
     @classmethod
     @property
     def right_near_serve_line_n(cls):
         return (
-            cls.width / cls.width,
-            (cls.length - cls.serve_line_from_back_line) / cls.length,
+            cls.right_near_serve_line[0] / cls.width,
+            cls.right_near_serve_line[1] / cls.length,
         )
 
     @classmethod
     @property
     def left_far_serve_line_n(cls):
-        return (0.0, (cls.serve_line_from_back_line) / cls.length)
+        return (
+            cls.left_far_serve_line[0] / cls.width,
+            cls.left_far_serve_line[1] / cls.length,
+        )
 
     @classmethod
     @property
     def right_far_serve_line_n(cls):
-        return (cls.width / cls.width, cls.serve_line_from_back_line / cls.length)
+        return (
+            cls.right_far_serve_line[0] / cls.width,
+            cls.right_far_serve_line[1] / cls.length,
+        )
 
 
 corners_world = {
