@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-court_scale = 1
+court_scale = 100
 
 
 @dataclass
@@ -174,10 +174,10 @@ corners_world = {
     "f_right_near_serve_line": PadelCourt.right_near_serve_line,
     "g_left_far_serve_line": PadelCourt.left_far_serve_line,
     "h_right_far_serve_line": PadelCourt.right_far_serve_line,
-    "i_center_line_left": PadelCourt.center_line[0].flatten().tolist(),
+    "i_center_line_far": PadelCourt.center_line[0].flatten().tolist(),
     "j_net_line_left": PadelCourt.net_line[0].flatten().tolist(),
-    "i_center_line_right": PadelCourt.center_line[1].flatten().tolist(),
-    "j_net_line_right": PadelCourt.net_line[1].flatten().tolist(),
+    "k_center_line_right": PadelCourt.center_line[1].flatten().tolist(),
+    "l_net_line_right": PadelCourt.net_line[1].flatten().tolist(),
 }
 corners_world_3d = {
     "a_front_left": (*PadelCourt.front_left, 0.0),
@@ -188,12 +188,10 @@ corners_world_3d = {
     "f_right_near_serve_line": (*PadelCourt.right_near_serve_line, 0.0),
     "g_left_far_serve_line": (*PadelCourt.left_far_serve_line, 0.0),
     "h_right_far_serve_line": (*PadelCourt.right_far_serve_line, 0.0),
-    "i_center_line_left": (*PadelCourt.center_line[0].flatten().tolist(), 0.0),
+    "i_center_line_far": (*PadelCourt.center_line[0].flatten().tolist(), 0.0),
     "j_net_line_left": (*PadelCourt.net_line[0].flatten().tolist(), 0.0),
-    "i_center_line_left": (*PadelCourt.center_line[0].flatten().tolist(), 0.0),
-    "j_net_line_left": (*PadelCourt.net_line[0].flatten().tolist(), 0.0),
-    "i_center_line_rigth": (*PadelCourt.center_line[1].flatten().tolist(), 0.0),
-    "j_net_line_right": (*PadelCourt.net_line[1].flatten().tolist(), 0.0),
+    "k_center_line_near": (*PadelCourt.center_line[1].flatten().tolist(), 0.0),
+    "l_net_line_right": (*PadelCourt.net_line[1].flatten().tolist(), 0.0),
 }
 corners_world_n = {
     "a_front_left": PadelCourt.front_left_n,
@@ -204,10 +202,10 @@ corners_world_n = {
     "f_right_near_serve_line": PadelCourt.right_near_serve_line_n,
     "g_left_far_serve_line": PadelCourt.left_far_serve_line_n,
     "h_right_far_serve_line": PadelCourt.right_far_serve_line_n,
-    "i_center_line_left": PadelCourt.center_line_n[0].flatten().tolist(),
+    "i_center_line_far": PadelCourt.center_line_n[0].flatten().tolist(),
     "j_net_line_left": PadelCourt.net_line_n[0].flatten().tolist(),
-    "i_center_line_right": PadelCourt.center_line_n[1].flatten().tolist(),
-    "j_net_line_right": (*PadelCourt.net_line_n[1].flatten().tolist(),),
+    "k_center_line_near": PadelCourt.center_line_n[1].flatten().tolist(),
+    "l_net_line_right": (*PadelCourt.net_line_n[1].flatten().tolist(),),
 }
 corners_world_3d_n = {
     "a_front_left": (*PadelCourt.front_left_n, 0.0),
@@ -218,17 +216,65 @@ corners_world_3d_n = {
     "f_right_near_serve_line": (*PadelCourt.right_near_serve_line_n, 0.0),
     "g_left_far_serve_line": (*PadelCourt.left_far_serve_line_n, 0.0),
     "h_right_far_serve_line": (*PadelCourt.right_far_serve_line_n, 0.0),
-    "i_center_line_left": (*PadelCourt.center_line_n[0].flatten().tolist(), 0.0),
+    "i_center_line_far": (*PadelCourt.center_line_n[0].flatten().tolist(), 0.0),
     "j_net_line_left": (*PadelCourt.net_line_n[0].flatten().tolist(), 0.0),
-    "i_center_line_rigth": (*PadelCourt.center_line_n[1].flatten().tolist(), 0.0),
-    "j_net_line_right": (*PadelCourt.net_line_n[1].flatten().tolist(), 0.0),
+    "k_center_line_near": (*PadelCourt.center_line_n[1].flatten().tolist(), 0.0),
+    "l_net_line_right": (*PadelCourt.net_line_n[1].flatten().tolist(), 0.0),
 }
+
+
+def get_coords_world_3d():
+    return np.array(
+        [
+            corners_world_3d["a_front_left"],
+            corners_world_3d["b_front_right"],
+            corners_world_3d["c_back_left"],
+            corners_world_3d["d_back_right"],
+            corners_world_3d["e_left_near_serve_line"],
+            corners_world_3d["f_right_near_serve_line"],
+            corners_world_3d["g_left_far_serve_line"],
+            corners_world_3d["h_right_far_serve_line"],
+        ],
+        dtype=np.float32,
+    )
+
+
+def get_coords_world_3d_n():
+    return np.array(
+        [
+            corners_world_3d_n["a_front_left"],
+            corners_world_3d_n["b_front_right"],
+            corners_world_3d_n["c_back_left"],
+            corners_world_3d_n["d_back_right"],
+            corners_world_3d_n["e_left_near_serve_line"],
+            corners_world_3d_n["f_right_near_serve_line"],
+            corners_world_3d_n["g_left_far_serve_line"],
+            corners_world_3d_n["h_right_far_serve_line"],
+        ],
+        dtype=np.float32,
+    )
 
 
 from collections import defaultdict
 from functools import partial
 
 import numpy as np
+import torch
+from kornia.geometry.homography import (
+    convert_points_from_homogeneous,
+    convert_points_to_homogeneous,
+)
+
+
+def project_points_to_base_plane(points: torch.tensor, H: torch.tensor) -> torch.tensor:
+    if len(points.shape) == 2:
+        return convert_points_from_homogeneous(
+            convert_points_to_homogeneous(points) @ H.T
+        )
+    elif len(points.shape) == 3:
+        return points @ H.T
+    else:
+        raise RuntimeError(f"{points.shape=} must be of length 2 or 3.")
 
 
 def convert_corners_to_vec(corners: dict) -> dict:
@@ -245,6 +291,33 @@ def convert_corners_to_vec(corners: dict) -> dict:
         for axis, value in zip(["x", "y", "z"], x_y_z, strict=False):
             vec_of_positions[axis] = np.append(vec_of_positions[axis], value)
     return vec_of_positions
+
+
+def convert_corners_to_coords(corners: dict) -> np.ndarray:
+    """Convert `corners_world_xx_n` to a numpy array of shape (12,)
+
+    Args:
+        corners (dict):
+
+    Returns:
+        np.ndarray: numpy array of shape (12,)
+    """
+    vec_of_positions = convert_corners_to_vec(corners=corners)
+    if "z" in vec_of_positions:
+        return np.array(
+            [
+                (x, y, z)
+                for x, y, z in zip(
+                    vec_of_positions["x"], vec_of_positions["y"], vec_of_positions["z"]
+                )
+            ],
+            dtype=np.float32,
+        )
+    return np.array(
+        [(x, y) for x, y in zip(vec_of_positions["x"], vec_of_positions["y"])],
+        dtype=np.float32,
+    )
+    # return np.array([vec_of_positions["x"], vec_of_positions["y"]], dtype=np.float32).reshape(-1, 2)
 
 
 def convert_corners_to_lines(corners: dict):
@@ -290,3 +363,70 @@ def convert_corners_to_lines(corners: dict):
         )
 
     return {"xs": xs, "ys": ys, "zs": zs}
+
+
+from pathlib import Path
+
+
+def get_corners_image(file_name: str) -> dict:
+    file_path = Path(file_name)
+    frame_name = "/".join([file_path.parent.name, file_path.stem])
+    annotated_images = {
+        "curated_001/frame_0001": {
+            "a_front_left": ((11.11111111111111 / 100.0), (87.90123456790124 / 100.0)),
+            "b_front_right": ((89.44444444444444 / 100.0), (88.64197530864197 / 100.0)),
+            "c_back_left": ((31.38888888888889 / 100.0), (29.135802469135804 / 100.0)),
+            "d_back_right": ((69.16666666666667 / 100.0), (29.382716049382715 / 100.0)),
+            "e_left_near_serve_line": (
+                (16.61237785016286 / 100.0),
+                (72.58687258687259 / 100.0),
+            ),
+            "f_right_near_serve_line": (
+                (84.14766558089035 / 100.0),
+                (72.77992277992279 / 100.0),
+            ),
+            "g_left_far_serve_line": (
+                (29.641693811074916 / 100.0),
+                (34.36293436293436 / 100.0),
+            ),
+            "h_right_far_serve_line": (
+                (70.96774193548387 / 100.0),
+                (34.387351778656125 / 100.0),
+            ),
+        }
+    }
+    return annotated_images[frame_name]
+
+
+import cv2
+
+from courtvision.vis import load_timg
+
+
+def compute_homography(annotated_frame, src_corners_n, dst_corners_n):
+    src_img_t = load_timg(annotated_frame)
+    src_img = src_img_t.squeeze(0).numpy().transpose(1, 2, 0)
+    src_img_height, src_img_width, _ = src_img.shape
+    dst_points = torch.tensor(
+        [
+            (x, PadelCourt.length - y)
+            for x, y in zip(
+                convert_corners_to_vec(dst_corners_n)["x"] * PadelCourt.width,
+                convert_corners_to_vec(dst_corners_n)["y"] * PadelCourt.length,
+            )
+        ]
+    )
+    src_points = torch.tensor(
+        [
+            (x, y)
+            for x, y in zip(
+                convert_corners_to_vec(src_corners_n)["x"] * src_img_width,
+                convert_corners_to_vec(src_corners_n)["y"] * src_img_height,
+            )
+        ]
+    )
+    if dst_points.shape != src_points.shape:
+        raise AssertionError(f"{dst_points.shape=} msut equal {src_points.shape=}")
+    homography, _ = cv2.findHomography(src_points.numpy(), dst_points.numpy())
+    # TODO: compute distortion and intrnics
+    return homography, None, None
