@@ -6,6 +6,7 @@ import kornia as K
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun_sdk
+import torch
 from mpl_toolkits.mplot3d import Axes3D
 from scipy import ndimage
 from ultralytics import YOLO
@@ -170,3 +171,19 @@ def plot_n_images_in_a_grid(images: list[np.array], n_cols: int = 3):
     for i, img in enumerate(images):
         ax[i // n_cols, i % n_cols].imshow(img)
     return fig, ax
+
+
+from courtvision.data import KeypointValue, RectValue
+
+
+def draw_rect(image: np.ndarray | torch.tensor, bboxes: list[RectValue]):
+
+    from kornia.utils import draw_rectangle, image_to_tensor
+
+    if isinstance(image, np.ndarray):
+        image = image_to_tensor(image)
+    for bbox in bboxes:
+        rect = torch.tensor(
+            [bbox.x, bbox.y, bbox.x + bbox.width, bbox.y + bbox.height]
+        ).unsqueeze(0)
+    draw_rectangle(image, rect, color=(0, 255, 0), width=2)

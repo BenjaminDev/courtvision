@@ -89,6 +89,37 @@ class PadelCourt:
     def right_far_serve_line(cls):
         return (cls.width, cls.length - cls.serve_line_from_back_line)
 
+    @classmethod
+    @property
+    def m_top_front_left():
+        # TODO: add thes
+        raise NotImplementedError()
+
+    @classmethod
+    @property
+    def n_top_front_right():
+        raise NotImplementedError()
+
+    @classmethod
+    @property
+    def o_top_back_left():
+        raise NotImplementedError()
+
+    @classmethod
+    @property
+    def p_top_back_right():
+        raise NotImplementedError()
+
+    @classmethod
+    @property
+    def q_top_net_line_left():
+        raise NotImplementedError()
+
+    @classmethod
+    @property
+    def r_top_net_line_right():
+        raise NotImplementedError()
+
     # Normalised:
     @classmethod
     @property
@@ -163,6 +194,26 @@ class PadelCourt:
             cls.right_far_serve_line[0] / cls.width,
             cls.right_far_serve_line[1] / cls.length,
         )
+
+    # a_front_left
+    # b_front_right
+    # c_back_left
+    # d_back_right
+    # e_left_near_serve_line
+    # f_right_near_serve_line
+    # g_left_far_serve_line
+    # h_right_far_serve_line
+    # i_center_line_far
+    # j_net_line_left
+    # k_center_line_right
+    # l_net_line_right
+
+    # m_top_front_left
+    # n_top_front_right
+    # o_top_back_left
+    # p_top_back_right
+    # q_top_net_line_left
+    # r_top_net_line_right
 
 
 corners_world = {

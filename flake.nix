@@ -42,6 +42,8 @@
               pkgs.ffmpeg
               pkgs.git-lfs
               pkgs.poetry
+              pkgs.podman
+              pkgs.qemu
               # Python plus helper tools
               (python.withPackages (ps: with ps; [
                 virtualenv # Virtualenv
