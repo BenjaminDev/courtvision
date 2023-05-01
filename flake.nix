@@ -42,6 +42,9 @@
               pkgs.ffmpeg
               pkgs.git-lfs
               pkgs.poetry
+              # pkgs.codeql
+              pkgs.zsh
+              pkgs.starship
               pkgs.podman
               pkgs.qemu
               # Python plus helper tools
@@ -50,6 +53,10 @@
                 pip # The pip installer
               ]))
             ];
+            # Environment variables to set
+            shellHook = ''
+              eval "$(starship init bash)"
+            '';
           };
 
       });

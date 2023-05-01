@@ -47,5 +47,5 @@ class CourtAnnotatedSample(BaseModel):
     annotations: list[Annotation]
 
 
-class BallDataSet(BaseModel):
+class PadelDataset(BaseModel):
     samples: list[CourtAnnotatedSample]

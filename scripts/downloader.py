@@ -45,11 +45,14 @@ def normalize_clip_title(title: str):
 # link="https://www.youtube.com/watch?v=Yq5Prva5C5A"
 # link="https://www.youtube.com/watch?v=Mm4zEMdG81s"
 
+#
+link = "https://www.youtube.com/watch?v=nBq3h6YPVuU"
+
 # Creative Commons
 # link="https://www.youtube.com/watch?v=RJ3KZCS7oAk"
 
 # Clips
-link = "https://www.youtube.com/shorts/S5igtIDi0v4"
+# link = "https://www.youtube.com/shorts/S5igtIDi0v4"
 
 yt = YouTube(link)
 clip = yt.streams.get_highest_resolution()
