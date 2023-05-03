@@ -96,55 +96,62 @@ class CourtVisionDataset(VisionDataset):
         return root / dir_name / f"{dir_name}_frame{frame_idx}.png"
 
     @staticmethod
-    def show_sample(annotation: Annotation, image: torch.Tensor):
+    def show_sample(annotation: list[Annotation], image: torch.Tensor):
         """Plots an image and its annotation"""
-        bboxes = [r.value for r in annotation.result if isinstance(r.value, RectValue)]
 
-        original_sizes = [
-            (r.original_width, r.original_height)
-            for r in annotation.result
-            if isinstance(r.value, RectValue)
-        ]
-        if bboxes:
-            rects = torch.stack(
-                [
-                    torch.tensor(
-                        [
-                            (bbox.x / 100.0) * w_h[0],
-                            (bbox.y / 100.0) * w_h[1],
-                            (bbox.x + bbox.width) / 100.0 * w_h[0],
-                            (bbox.y + bbox.height) / 100.0 * w_h[1],
-                        ]
-                    ).unsqueeze(0)
-                    for bbox, w_h in zip(bboxes, original_sizes)
-                ]
-            ).permute(1, 0, 2)
-            print(rects.shape)
-            draw_rect(image, bboxes=rects)
+        def draw_annotaion(annotation: Annotation, image: torch.Tensor):
+            bboxes = [
+                r.value for r in annotation.result if isinstance(r.value, RectValue)
+            ]
 
-        keypoints = [
-            r.value for r in annotation.result if isinstance(r.value, KeypointValue)
-        ]
-        original_sizes = [
-            (r.original_width, r.original_height)
-            for r in annotation.result
-            if isinstance(r.value, KeypointValue)
-        ]
-        if keypoints:
-            point_width = 1.0
-            rects = torch.stack(
-                [
-                    torch.tensor(
-                        [
-                            (point.x / 100.0) * w_h[0],
-                            (point.y / 100.0) * w_h[1],
-                            (point.x + point_width) / 100.0 * w_h[0],
-                            (point.y + point_width) / 100.0 * w_h[1],
-                        ]
-                    ).unsqueeze(0)
-                    for point, w_h in zip(keypoints, original_sizes)
-                ]
-            ).permute(1, 0, 2)
+            original_sizes = [
+                (r.original_width, r.original_height)
+                for r in annotation.result
+                if isinstance(r.value, RectValue)
+            ]
+            if bboxes:
+                rects = torch.stack(
+                    [
+                        torch.tensor(
+                            [
+                                (bbox.x / 100.0) * w_h[0],
+                                (bbox.y / 100.0) * w_h[1],
+                                (bbox.x + bbox.width) / 100.0 * w_h[0],
+                                (bbox.y + bbox.height) / 100.0 * w_h[1],
+                            ]
+                        ).unsqueeze(0)
+                        for bbox, w_h in zip(bboxes, original_sizes)
+                    ]
+                ).permute(1, 0, 2)
+                print(rects.shape)
+                draw_rect(image, bboxes=rects)
 
-            draw_rect(image, bboxes=rects)
+            keypoints = [
+                r.value for r in annotation.result if isinstance(r.value, KeypointValue)
+            ]
+            original_sizes = [
+                (r.original_width, r.original_height)
+                for r in annotation.result
+                if isinstance(r.value, KeypointValue)
+            ]
+            if keypoints:
+                point_width = 1.0
+                rects = torch.stack(
+                    [
+                        torch.tensor(
+                            [
+                                (point.x / 100.0) * w_h[0],
+                                (point.y / 100.0) * w_h[1],
+                                (point.x + point_width) / 100.0 * w_h[0],
+                                (point.y + point_width) / 100.0 * w_h[1],
+                            ]
+                        ).unsqueeze(0)
+                        for point, w_h in zip(keypoints, original_sizes)
+                    ]
+                ).permute(1, 0, 2)
+
+                draw_rect(image, bboxes=rects)
+
+        for annot in annotation:
+            draw_annotaion(annot, image)
         plt.imshow(image.squeeze(0).permute(1, 2, 0))
