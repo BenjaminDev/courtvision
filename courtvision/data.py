@@ -87,6 +87,12 @@ class CourtVisionDataset(VisionDataset):
         )
 
     @staticmethod
+    def collate_fn(batch):
+        """Collate function for the dataloader"""
+        samples, images = zip(*batch)
+        return samples, torch.stack(images)
+
+    @staticmethod
     def find_image_path(root: Path | str, sample: CourtAnnotatedSample):
         """Finds the image path from a sample"""
         root = Path(root)
@@ -155,3 +161,49 @@ class CourtVisionDataset(VisionDataset):
         for annot in annotation:
             draw_annotaion(annot, image)
         plt.imshow(image.squeeze(0).permute(1, 2, 0))
+
+
+def annotations_to_bbox(annotations: list[Annotation]):
+    bboxes = []
+    original_sizes = []
+    for annotation in annotations:
+        bboxes.extend(
+            [r.value for r in annotation.result if isinstance(r.value, RectValue)]
+        )
+        original_sizes.extend(
+            [
+                (r.original_width, r.original_height)
+                for r in annotation.result
+                if isinstance(r.value, RectValue)
+            ]
+        )
+    if not bboxes:
+        raise ValueError("No bounding boxes in annotation")
+
+    return torch.stack(
+        [
+            torch.tensor(
+                [
+                    (bbox.x / 100.0) * w_h[0],
+                    (bbox.y / 100.0) * w_h[1],
+                    (bbox.x + bbox.width) / 100.0 * w_h[0],
+                    (bbox.y + bbox.height) / 100.0 * w_h[1],
+                ]
+            )
+            for bbox, w_h in zip(bboxes, original_sizes)
+        ]
+    )
+
+
+def collate_fn(batch):
+    """Collate function for the dataloader"""
+    samples, images = zip(*batch)
+    targets = [
+        {
+            "boxes": annotations_to_bbox(sample.annotations),
+            "labels": torch.ones(1, dtype=torch.int64),
+        }
+        for sample in samples
+    ]
+
+    return targets, [o.squeeze(0) for o in images]
