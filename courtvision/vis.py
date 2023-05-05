@@ -6,13 +6,15 @@ import cv2
 import kornia as K
 import matplotlib.pyplot as plt
 import numpy as np
-import rerun_sdk
+
+# import rerun_sdk
 import torch
 from mpl_toolkits.mplot3d import Axes3D
 from scipy import ndimage
-from ultralytics import YOLO
 
-model = YOLO("yolov8n.pt")
+# from ultralytics import YOLO
+
+# model = YOLO("yolov8n.pt")
 
 
 def plot_coords(img: np.array, src_coords: np.array, show: bool = True, thickness=2):
@@ -174,10 +176,10 @@ def plot_n_images_in_a_grid(images: list[np.array], n_cols: int = 3):
     return fig, ax
 
 
-from courtvision.data import KeypointValue, RectValue
+# from courtvision.data import KeypointValue, RectValue
 
 
-def draw_rect(image: Union[np.ndarray, torch.tensor], bboxes: list[RectValue]):
+def draw_rect(image: Union[np.ndarray, torch.tensor], bboxes: list["RectValue"]):
 
     from kornia.utils import draw_rectangle, image_to_tensor
 

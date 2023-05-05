@@ -10,8 +10,8 @@ python = "^3.10"
 imageio = "^2.27.0"
 black = {extras = ["jupyter"], version = "^23.3.0"}
 numpy = "^1.24.2"
-lap = {path = "/Users/benjamindecharmoy/projects/lap/dist/lap-0.5.dev0-cp311-cp311-macosx_11_0_arm64.whl"}
-rerun-sdk = "^0.4.0"
+# TODO: this is a macosx_11_0_arm64 only wheel!
+
 pytorch-lightning = "^2.0.1.post0"
 pydantic = "^1.10.7"
 
@@ -19,6 +19,8 @@ pydantic = "^1.10.7"
 [tool.poetry.group.dev.dependencies]
 ipywidgets = "^8.0.6"
 black = "^23.3.0"
+rerun-sdk = "^0.5.1"
+lap = {path = "/Users/benjamindecharmoy/projects/lap/dist/lap-0.5.dev0-cp311-cp311-macosx_11_0_arm64.whl"}
 
 [build-system]
 requires = ["poetry-core"]

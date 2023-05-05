@@ -47,6 +47,7 @@
               pkgs.starship
               pkgs.podman
               pkgs.qemu
+              pkgs.docker-compose
               # Python plus helper tools
               (python.withPackages (ps: with ps; [
                 virtualenv # Virtualenv
