@@ -1,0 +1,8 @@
+Jinja2
+click
+itsdangerous
+label-studio-ml
+rq
+supervisor
+uwsgi
+werkzeug

@@ -423,7 +423,7 @@ def get_corners_image(file_name: str) -> dict:
     file_path = Path(file_name)
     frame_name = "/".join([file_path.parent.name, file_path.stem])
     annotated_images = {
-        "curated_001/frame_0001": {
+        "curated_001/curated_001_frame_0001": {
             "a_front_left": ((11.11111111111111 / 100.0), (87.90123456790124 / 100.0)),
             "b_front_right": ((89.44444444444444 / 100.0), (88.64197530864197 / 100.0)),
             "c_back_left": ((31.38888888888889 / 100.0), (29.135802469135804 / 100.0)),

@@ -20,7 +20,6 @@ class KeypointValue(BaseModel):
     x: float
     y: float
     width: float
-    # height:float|None
     keypointlabels: list[str]
 
 
@@ -32,7 +31,7 @@ class GeneralResult(BaseModel):
         RectValue,
         KeypointValue,
     ]
-
+    to_name: str = ""
     from_name: str
 
 
@@ -95,11 +94,22 @@ class CourtVisionDataset(VisionDataset):
     @staticmethod
     def find_image_path(root: Path | str, sample: CourtAnnotatedSample):
         """Finds the image path from a sample"""
-        root = Path(root)
-        dir_name, _, frame_idx = sample.data.image.stem.split("-")[-1].partition(
-            "_frame"
+        #         root = Path(root)
+        #         dir_name, _, frame_idx = sample.data.image.stem.partition("_frame")
+        #         dir_name = dir_name.split("-", 1)[-1]
+        #         filename = root / dir_name / f"{dir_name}_frame{frame_idx}.png"
+        # # /Users/benjamindecharmoy/projects/courtvision/labelstudiodata/media/upload/1/b6f5d028-Highlights-TOLITO-AGUIRRE---TITO-ALLEMANDI-vs-CHIOSTRI---MELGRATTI--Sa_Lwr6ooR.png
+        #         if not filename.exists():
+        #             print(f"{filename=} \n{root=}!")
+        #             print(f"{sample.data.image=}")
+        #             raise Exception("Could not find image")
+        #         return filename
+        server_file_path = Path(*sample.data.image.parts[2:])  # remove /data/
+        filename = Path(
+            f"/Users/benjamindecharmoy/projects/courtvision/labelstudiodata/media/{server_file_path}"
         )
-        return root / dir_name / f"{dir_name}_frame{frame_idx}.png"
+        # print(f"{filename=}")
+        return filename
 
     @staticmethod
     def show_sample(annotation: list[Annotation], image: torch.Tensor):
@@ -177,8 +187,8 @@ def annotations_to_bbox(annotations: list[Annotation]):
                 if isinstance(r.value, RectValue)
             ]
         )
-    if not bboxes:
-        raise ValueError("No bounding boxes in annotation")
+    # if not bboxes:
+    # raise ValueError("No bounding boxes in annotation")
 
     return torch.stack(
         [
