@@ -10,6 +10,7 @@ class PadelCourt:
     # REF: https://www.lta.org.uk/4ad2a4/siteassets/play/padel/file/lta-padel-court-guidance.pdf
     width: float = 10.0 * court_scale
     length: float = 20.0 * court_scale
+    backwall_height: float = 3.0 * court_scale
     serve_line_from_back_line: float = 2.0 * court_scale
     line_width: float = 0.05
 
@@ -58,6 +59,18 @@ class PadelCourt:
     @property
     def front_right(cls):
         return (cls.width, 0)
+
+    @classmethod
+    @property
+    def top_front_left_vertical_plane(cls):
+        # x, z
+        return (0.0, cls.backwall_height)
+
+    @classmethod
+    @property
+    def top_front_right_vertical_plane(cls):
+        # x, z
+        return (cls.width, cls.backwall_height)
 
     @classmethod
     @property
@@ -155,6 +168,30 @@ class PadelCourt:
 
     @classmethod
     @property
+    def top_front_left_vertical_plane_n(cls):
+        # x, z
+        return (0.0, 0.0)
+
+    @classmethod
+    @property
+    def top_front_right_vertical_plane_n(cls):
+        # x, z
+        return (cls.width / cls.width, 0.0)
+
+    @classmethod
+    @property
+    def front_left_vertical_plane_n(cls):
+        # x, z
+        return (0.0, cls.backwall_height / cls.backwall_height)
+
+    @classmethod
+    @property
+    def front_right_vertical_plane_n(cls):
+        # x, z
+        return (cls.width / cls.width, cls.backwall_height / cls.backwall_height)
+
+    @classmethod
+    @property
     def back_left_n(cls):
         return (cls.back_left[0] / cls.width, cls.back_left[1] / cls.length)
 
@@ -243,7 +280,16 @@ corners_world_3d = {
     "j_net_line_left": (*PadelCourt.net_line[0].flatten().tolist(), 0.0),
     "k_center_line_near": (*PadelCourt.center_line[1].flatten().tolist(), 0.0),
     "l_net_line_right": (*PadelCourt.net_line[1].flatten().tolist(), 0.0),
+    "m_top_front_left": (*PadelCourt.front_left, PadelCourt.backwall_height),
+    "n_top_front_right": (*PadelCourt.front_right, PadelCourt.backwall_height),
 }
+corners_frontwall_world_n = {
+    "a_front_left": PadelCourt.front_left_vertical_plane_n,
+    "b_front_right": PadelCourt.front_right_vertical_plane_n,
+    "m_top_front_left": PadelCourt.top_front_left_vertical_plane_n,
+    "n_top_front_right": PadelCourt.top_front_right_vertical_plane_n,
+}
+
 corners_world_n = {
     "a_front_left": PadelCourt.front_left_n,
     "b_front_right": PadelCourt.front_right_n,
@@ -258,6 +304,7 @@ corners_world_n = {
     "k_center_line_near": PadelCourt.center_line_n[1].flatten().tolist(),
     "l_net_line_right": (*PadelCourt.net_line_n[1].flatten().tolist(),),
 }
+
 corners_world_3d_n = {
     "a_front_left": (*PadelCourt.front_left_n, 0.0),
     "b_front_right": (*PadelCourt.front_right_n, 0.0),
@@ -419,6 +466,26 @@ def convert_corners_to_lines(corners: dict):
 from pathlib import Path
 
 
+def get_corners_frontwall_image(file_name: str) -> dict:
+    file_path = Path(file_name)
+    frame_name = "/".join([file_path.parent.name, file_path.stem])
+    annotated_images = {
+        "curated_001/curated_001_frame_0001": {
+            "a_front_left": ((11.11111111111111 / 100.0), (87.90123456790124 / 100.0)),
+            "b_front_right": ((89.44444444444444 / 100.0), (88.64197530864197 / 100.0)),
+            "m_top_front_left": (
+                (8.781544542793732) / 100.0,
+                (48.94205883861235) / 100.0,
+            ),
+            "n_top_front_right": (
+                (91.41485490658893) / 100.0,
+                (48.850634147450556) / 100.0,
+            ),
+        }
+    }
+    return annotated_images[frame_name]
+
+
 def get_corners_image(file_name: str) -> dict:
     file_path = Path(file_name)
     frame_name = "/".join([file_path.parent.name, file_path.stem])
@@ -464,6 +531,35 @@ def compute_homography(annotated_frame, src_corners_n, dst_corners_n):
             for x, y in zip(
                 convert_corners_to_vec(dst_corners_n)["x"] * PadelCourt.width,
                 convert_corners_to_vec(dst_corners_n)["y"] * PadelCourt.length,
+            )
+        ]
+    )
+    src_points = torch.tensor(
+        [
+            (x, y)
+            for x, y in zip(
+                convert_corners_to_vec(src_corners_n)["x"] * src_img_width,
+                convert_corners_to_vec(src_corners_n)["y"] * src_img_height,
+            )
+        ]
+    )
+    if dst_points.shape != src_points.shape:
+        raise AssertionError(f"{dst_points.shape=} msut equal {src_points.shape=}")
+    homography, _ = cv2.findHomography(src_points.numpy(), dst_points.numpy())
+    # TODO: compute distortion and intrnics
+    return homography, None, None
+
+
+def compute_homography_to_vertical_plane(annotated_frame, src_corners_n, dst_corners_n):
+    src_img_t = load_timg(annotated_frame)
+    src_img = src_img_t.squeeze(0).numpy().transpose(1, 2, 0)
+    src_img_height, src_img_width, _ = src_img.shape
+    dst_points = torch.tensor(
+        [
+            (x, y)
+            for x, y in zip(
+                convert_corners_to_vec(dst_corners_n)["x"] * PadelCourt.width,
+                convert_corners_to_vec(dst_corners_n)["y"] * PadelCourt.backwall_height,
             )
         ]
     )

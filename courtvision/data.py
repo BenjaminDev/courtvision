@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Union
 
 from pydantic import BaseModel, Field
+from torch.utils.data import DataLoader
 
 
 class AnnotationDataPath(BaseModel):
@@ -217,3 +218,9 @@ def collate_fn(batch):
     ]
 
     return targets, [o.squeeze(0) for o in images]
+
+
+def validate_dataloader(dataloader: DataLoader):
+    for (targets, images) in dataloader:
+        assert all(o["boxes"].shape for o in targets)
+        assert all(o.shape for o in images)
