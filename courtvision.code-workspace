@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "Quick Queries",
+			"path": "../../Library/Application Support/Code/User/workspaceStorage/d70abcd1f4378b4b392cfc9dfa239f24/GitHub.vscode-codeql/quick-queries"
+		},
+		{
+			"name": "[python-database source archive]",
+			"uri": "codeql-zip-archive://0-69/Users/benjamindecharmoy/projects/courtvision/python-database/src.zip"
+		}
+	],
+	"settings": {
+		"files.autoSave": "afterDelay"
+	}
+}

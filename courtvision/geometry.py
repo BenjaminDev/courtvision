@@ -464,15 +464,20 @@ def convert_corners_to_lines(corners: dict):
 
 
 from pathlib import Path
+from typing import Literal
 
 
-def get_corners_frontwall_image(file_name: str) -> dict:
+def get_corners_verital_plane_on_image(
+    file_name: str, plane: Literal["front", "back"]
+) -> dict:
     file_path = Path(file_name)
     frame_name = "/".join([file_path.parent.name, file_path.stem])
     annotated_images = {
         "curated_001/curated_001_frame_0001": {
             "a_front_left": ((11.11111111111111 / 100.0), (87.90123456790124 / 100.0)),
             "b_front_right": ((89.44444444444444 / 100.0), (88.64197530864197 / 100.0)),
+            "c_back_left": ((31.18673582738404) / 100.0, (29.00062932223646) / 100.0),
+            "d_back_right": ((68.65158264621417) / 100.0, (28.943474276940947) / 100.0),
             "m_top_front_left": (
                 (8.781544542793732) / 100.0,
                 (48.94205883861235) / 100.0,
@@ -481,9 +486,31 @@ def get_corners_frontwall_image(file_name: str) -> dict:
                 (91.41485490658893) / 100.0,
                 (48.850634147450556) / 100.0,
             ),
+            "o_top_back_left": (
+                (30.672799144493634) / 100.0,
+                (8.698873476649666) / 100.0,
+            ),
+            "p_top_back_right": (
+                (69.48541987969993) / 100.0,
+                (69.48541987969993) / 100.0,
+            ),
         }
     }
-    return annotated_images[frame_name]
+    points = annotated_images[frame_name]
+    if plane == "front":
+        for k in ["c_back_left", "d_back_right", "o_top_back_left", "p_top_back_right"]:
+            points.pop(k)
+    elif plane == "back":
+        for k in [
+            "a_front_left",
+            "b_front_right",
+            "m_top_front_left",
+            "n_top_front_right",
+        ]:
+            points.pop(k)
+    else:
+        raise ValueError(f"{plane=} must be 'front' or 'back'")
+    return points
 
 
 def get_corners_image(file_name: str) -> dict:
@@ -544,7 +571,7 @@ def compute_homography(annotated_frame, src_corners_n, dst_corners_n):
         ]
     )
     if dst_points.shape != src_points.shape:
-        raise AssertionError(f"{dst_points.shape=} msut equal {src_points.shape=}")
+        raise AssertionError(f"{dst_points.shape=} must equal {src_points.shape=}")
     homography, _ = cv2.findHomography(src_points.numpy(), dst_points.numpy())
     # TODO: compute distortion and intrnics
     return homography, None, None
@@ -575,5 +602,6 @@ def compute_homography_to_vertical_plane(annotated_frame, src_corners_n, dst_cor
     if dst_points.shape != src_points.shape:
         raise AssertionError(f"{dst_points.shape=} msut equal {src_points.shape=}")
     homography, _ = cv2.findHomography(src_points.numpy(), dst_points.numpy())
+    cv2.findHomography
     # TODO: compute distortion and intrnics
     return homography, None, None
