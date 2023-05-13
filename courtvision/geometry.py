@@ -282,6 +282,8 @@ corners_world_3d = {
     "l_net_line_right": (*PadelCourt.net_line[1].flatten().tolist(), 0.0),
     "m_top_front_left": (*PadelCourt.front_left, PadelCourt.backwall_height),
     "n_top_front_right": (*PadelCourt.front_right, PadelCourt.backwall_height),
+    "o_top_back_left": (*PadelCourt.back_left, PadelCourt.backwall_height),
+    "p_top_back_right": (*PadelCourt.back_right, PadelCourt.backwall_height),
 }
 corners_frontwall_world_n = {
     "a_front_left": PadelCourt.front_left_vertical_plane_n,
@@ -508,8 +510,10 @@ def get_corners_verital_plane_on_image(
             "n_top_front_right",
         ]:
             points.pop(k)
+    elif plane == "both":
+        pass
     else:
-        raise ValueError(f"{plane=} must be 'front' or 'back'")
+        raise ValueError(f"{plane=} must be one of 'front', 'back' or 'both'")
     return points
 
 

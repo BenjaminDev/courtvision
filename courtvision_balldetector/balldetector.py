@@ -1,4 +1,5 @@
 import random
+from pathlib import Path
 
 import torch
 
@@ -15,6 +16,7 @@ from label_studio_ml.utils import (
 # host.docker.internal -> might be better
 from courtvision.data import GeneralResult, RectValue
 from courtvision.models import get_fasterrcnn_ball_detection_model
+from courtvision.swiss import get_latest_file
 from courtvision.vis import load_timg
 
 
@@ -31,7 +33,11 @@ class DummyModel(LabelStudioMLBase):
             "fasterrcnn_resnet50_fpn_project-1-at-2023-05-05-19-29-73700012.ptt"
         )
         self.model = get_fasterrcnn_ball_detection_model(
-            model_path=f"/Users/benjamindecharmoy/projects/courtvision/models/ball_detector/{model_name}"
+            model_path=get_latest_file(
+                Path(
+                    "/Users/benjamindecharmoy/projects/courtvision/models/ball_detector"
+                ),
+            )
         ).eval()
 
     def predict(self, tasks, **kwargs):
