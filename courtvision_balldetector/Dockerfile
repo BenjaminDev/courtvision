@@ -11,15 +11,17 @@ RUN apt update && apt install build-essential -y \
 
 RUN --mount=type=cache,target=$PIP_CACHE_DIR \
     pip install -r requirements.txt
-COPY courtvision-0.1.0-py3-none-any.whl courtvision-0.1.0-py3-none-any.whl
-RUN pip install courtvision-0.1.0-py3-none-any.whl
 COPY uwsgi.ini /etc/uwsgi/
 COPY supervisord.conf /etc/supervisor/conf.d/
 
+RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
 WORKDIR /app
 
 COPY *.py /app/
+COPY *.pt /models/
 
+COPY courtvision-0.1.0-py3-none-any.whl courtvision-0.1.0-py3-none-any.whl
+RUN pip install courtvision-0.1.0-py3-none-any.whl
 EXPOSE 9090
-
+# CMD [ "echo $(which supervisord)" ]
 CMD ["/usr/local/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

@@ -26,3 +26,10 @@ services:
     volumes:
       - "./data/server:/data"
       - "./logs:/tmp"
+  ui:
+    image: heartexlabs/label-studio:latest
+    container_name: ui
+    ports:
+      - 8080:8080
+    volumes:
+      - "./data/labelstudiodata:/label-studio/data"

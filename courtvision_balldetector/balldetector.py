@@ -29,13 +29,9 @@ class DummyModel(LabelStudioMLBase):
         self.from_name = from_name
         self.to_name = schema["to_name"][0]
         self.labels = schema["labels"]
-        model_name = "fasterrcnn_resnet50_fpn_project-1-at-2023-05-05-19-29-73700012.pt"
-        self.model = get_fasterrcnn_ball_detection_model(
-            model_path=Path(
-                "/Users/benjamindecharmoy/projects/courtvision/models/ball_detector"
-            )
-            / model_name
-        ).eval()
+        # model_name = "fasterrcnn_resnet50_fpn_project-1-at-2023-05-05-19-29-73700012.pt"
+        model_path = get_latest_file(Path("/models"))
+        self.model = get_fasterrcnn_ball_detection_model(model_path=model_path).eval()
 
     def predict(self, tasks, **kwargs):
         """This is where inference happens:
@@ -49,7 +45,7 @@ class DummyModel(LabelStudioMLBase):
             image_path = get_local_path(
                 task["data"]["image"],
                 access_token=access_token,
-                hostname="http://localhost:8080",
+                hostname="http://ui:8080",
             )
             image = load_timg(image_path)
             with torch.no_grad():
