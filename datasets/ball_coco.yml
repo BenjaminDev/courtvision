@@ -1,0 +1,10 @@
+path: /Users/benjamindecharmoy/projects/courtvision/datasets/ball_coco/  # dataset root dir
+train: images
+val: images
+test:  # test images (optional)
+
+# Classes (80 COCO classes)
+names:
+  0: nop
+  1: nop_2
+  2: ball

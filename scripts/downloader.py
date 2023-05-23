@@ -5,6 +5,44 @@ from pathlib import Path
 from pytube import YouTube
 
 
+def monkey_patch():
+    from typing import List
+
+    from pytube.cipher import (
+        get_throttling_function_array,
+        get_throttling_plan,
+        get_transform_map,
+        get_transform_plan,
+    )
+    from pytube.exceptions import RegexMatchError
+
+    def __init__(self, js: str):
+        self.transform_plan: List[str] = get_transform_plan(js)
+        # var_regex = re.compile(r"^\w+\W")
+        var_regex = re.compile(r"^\$*\w+\W")
+        var_match = var_regex.search(self.transform_plan[0])
+        if not var_match:
+            raise RegexMatchError(caller="__init__", pattern=var_regex.pattern)
+        var = var_match.group(0)[:-1]
+        self.transform_map = get_transform_map(js, var)
+        self.js_func_patterns = [
+            r"\w+\.(\w+)\(\w,(\d+)\)",
+            r"\w+\[(\"\w+\")\]\(\w,(\d+)\)",
+        ]
+
+        self.throttling_plan = get_throttling_plan(js)
+        self.throttling_array = get_throttling_function_array(js)
+
+        self.calculated_n = None
+
+    from pytube.cipher import Cipher
+
+    Cipher.__init__ = __init__
+
+
+monkey_patch()
+
+
 def remove_emojis(text):
     emoji_pattern = re.compile(
         "["
@@ -46,7 +84,8 @@ def normalize_clip_title(title: str):
 # link="https://www.youtube.com/watch?v=Mm4zEMdG81s"
 
 #
-link = "https://www.youtube.com/watch?v=nBq3h6YPVuU"
+# link = "https://www.youtube.com/watch?v=nBq3h6YPVuU"
+link = "https://www.youtube.com/watch?v=JLsMDz6Bcc8"
 
 # Creative Commons
 # link="https://www.youtube.com/watch?v=RJ3KZCS7oAk"
