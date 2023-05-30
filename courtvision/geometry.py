@@ -609,3 +609,109 @@ def compute_homography_to_vertical_plane(annotated_frame, src_corners_n, dst_cor
     cv2.findHomography
     # TODO: compute distortion and intrnics
     return homography, None, None
+
+
+def solve_for_camera_matrix(
+    world_points: torch.Tensor,
+    image_points: torch.Tensor,
+    image_size: tuple[int, int],
+    repo_erro_threshold: float = 1e-1,
+) -> tuple[torch.Tensor, torch.Tensor, float]:
+    """From a set of world points and image points, solve for the camera matrix and distortion coefficients.
+    Note: All world points must have the same z value. i.e lie on the same plane.
+
+    Args:
+        world_points (torch.Tensor): Tensor of world points.
+        image_points (torch.Tensor): Tensor of image points.
+        image_size (tuple[int, int]): Image dimensions as (Width, Height).
+        repo_error (float, optional): Reprojection error measured in pixels. Defaults to 1e-1.
+
+    Returns (Tuple[torch.Tensor, torch.Tensor, float]): camera_matrix (3x3), dist_coeffs (1x5), repo_erro
+
+    """
+    if len(world_points.shape) == 3:
+        _world_points = [world_points.squeeze(0).numpy().astype(np.float32)]
+    elif len(world_points.shape) == 2:
+        _world_points = [world_points.numpy().astype(np.float32)]
+    else:
+        raise RuntimeError(f"{world_points.shape=} must be of length 2 or 3.")
+    if len(image_points.shape) == 3:
+        _image_points = [image_points.squeeze(0).numpy().astype(np.float32)]
+    elif len(image_points.shape) == 2:
+        _image_points = [image_points.numpy().astype(np.float32)]
+    else:
+        raise RuntimeError(f"{image_points.shape=} must be of length 2 or 3.")
+
+    if not all(o[-1] == _world_points[0][0][-1] for o in _world_points[0]):
+        raise RuntimeError(f"{_world_points=} must have same z value")
+
+    repo_erro, camera_matrix, dist_coeffs, *_ = cv2.calibrateCamera(
+        objectPoints=_world_points,
+        imagePoints=_image_points,
+        imageSize=image_size,
+        cameraMatrix=None,
+        distCoeffs=None,
+    )
+    if repo_erro > repo_erro_threshold:
+        raise RuntimeError(f"{repo_erro=} must be less than 1e-6")
+    return camera_matrix, dist_coeffs, repo_erro
+
+
+# dist_coeffs
+def solve_for_projection_matrix(
+    world_points: np.ndarray,
+    image_points: np.ndarray,
+    camera_matrix: np.ndarray,
+    dist_coeffs: np.ndarray,
+    in_object_coordinate_frame: bool = True,
+):
+    success, rvec, tvec = cv2.solvePnP(
+        world_points,
+        image_points,
+        camera_matrix,
+        dist_coeffs,
+        flags=cv2.SOLVEPNP_ITERATIVE,
+        useExtrinsicGuess=False,
+    )
+    if not success:
+        raise RuntimeError(f"{success=} Failed to compute projection matrix")
+
+    # Convert rotation vector to rotation matrix
+    rmat, _ = cv2.Rodrigues(rvec)
+    return rmat, tvec
+    # R, t = cv2.Rodrigues(rvec)
+    # T = np.append(t, [1], axis=0)
+    # transformation_matrix = np.dot(R, T)
+    # return transformation_matrix
+    # Transform the object points from the object coordinate frame to the camera coordinate frame.
+    # camera_points = np.dot(transformation_matrix, object_points.T).T
+    if in_object_coordinate_frame:
+        # Change rotation matrix to be in the object coordinate frame
+        rmat_inv = np.linalg.inv(rmat)
+        # rmat_inv = rmat.T
+        # tvec_inv = -1*tvec
+        # return rmat_inv
+        # Compute inverse translation
+        t_inv = -np.dot(rmat_inv, tvec)
+        projection_matrix = np.hstack((rmat_inv, t_inv))
+    else:
+        # raise NotImplementedError()
+        # return rmat
+        # Concatenate rotation matrix and translation vector to create a 3x4 transformation matrix
+        projection_matrix = np.hstack((rmat, tvec))
+    return projection_matrix
+
+
+def transfrom_points(
+    points: np.ndarray, transformation_matrix: np.ndarray, tvec: np.ndarray
+) -> np.ndarray:
+    return (transformation_matrix @ points.T).T - tvec.T
+    # return (transformation_matrix @ (points.T-tvec)).T
+
+
+def transform_points_inverse(
+    points: np.ndarray, transformation_matrix: np.ndarray, tvec: np.ndarray
+) -> np.ndarray:
+    return (transformation_matrix.T @ (points + tvec).T).T
+
+    # return np.dot(transformation_matrix, points.T).T
