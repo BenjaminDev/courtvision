@@ -130,7 +130,7 @@ def points_to_heat_map(
         points = (
             np.array([v for _, v in named_points.items()], dtype=np.float32) + offset
         )
-
+    return points
     # Calculate the 2D histogram of the points
     heatmap, x_edges, y_edges = np.histogram2d(
         points[:, 0],
@@ -141,11 +141,11 @@ def points_to_heat_map(
 
     # Smooth the heatmap using a Gaussian filter
     heatmap = np.float32(ndimage.gaussian_filter(heatmap, sigma=10, radius=300))
-    return heatmap.T
+    return heatmap.T, points
 
 
-def draw_points(image, points, color=(0, 255, 0), radius=10, thickness=-1):
-    for p1 in points[:]:
+def draw_points(image, points, color=(0, 255, 0), radius=10, thickness=-1, labels=None):
+    for i, p1 in enumerate(points[:]):
         cv2.circle(
             img=image,
             center=[int(o) for o in p1],
@@ -153,6 +153,16 @@ def draw_points(image, points, color=(0, 255, 0), radius=10, thickness=-1):
             color=color,
             thickness=thickness,
         )
+        if labels is not None:
+            cv2.putText(
+                image,
+                labels[i],
+                (int(p1[0]), int(p1[1])),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 0, 0),
+                2,
+            )
     return image
 
 

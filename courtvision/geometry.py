@@ -18,7 +18,11 @@ class PadelCourt:
     @property
     def center_line(cls) -> np.array:
         return np.array(
-            [(cls.width / 2, cls.length), (cls.width / 2, 0)], dtype=np.int32
+            [
+                (cls.width / 2, cls.length - cls.serve_line_from_back_line),
+                (cls.width / 2, cls.serve_line_from_back_line),
+            ],
+            dtype=np.int32,
         ).reshape(-1, 1, 2)
 
     @classmethod
@@ -493,8 +497,8 @@ def get_corners_verital_plane_on_image(
                 (8.698873476649666) / 100.0,
             ),
             "p_top_back_right": (
-                (69.48541987969993) / 100.0,
-                (69.48541987969993) / 100.0,
+                (69.66060228055649) / 100.0,
+                (8.748200961152353) / 100.0,
             ),
         }
     }
@@ -541,6 +545,46 @@ def get_corners_image(file_name: str) -> dict:
             "h_right_far_serve_line": (
                 (70.96774193548387 / 100.0),
                 (34.387351778656125 / 100.0),
+            ),
+            "i_center_line_far": (
+                (49.974415820476416 / 100.0),
+                (33.73523908457271 / 100.0),
+            ),
+            "j_net_line_left": (
+                (24.39366213014177 / 100.0),
+                (49.3124355099835 / 100.0),
+            ),
+            "k_center_line_near": (
+                (50.16556291390729 / 100.0),
+                (72.05882352941177 / 100.0),
+            ),
+            "l_net_line_right": (
+                (76.01445288204798 / 100.0),
+                (47.96259686296029 / 100.0),
+            ),
+            "m_top_front_left": (
+                (8.781544542793732 / 100.0),
+                (48.942058838612354 / 100.0),
+            ),
+            "n_top_front_right": (
+                (91.41485490658893 / 100.0),
+                (48.850634147450556 / 100.0),
+            ),
+            "o_top_back_left": (
+                (30.672799144493634 / 100.0),
+                (8.698873476649666 / 100.0),
+            ),
+            "p_top_back_right": (
+                (69.48541987969993 / 100.0),
+                (8.732922374525746 / 100.0),
+            ),
+            "q_top_net_line_left": (
+                (24.142083082480436 / 100.0),
+                (40.64171122994652 / 100.0),
+            ),
+            "r_top_net_line_right": (
+                (75.91812161348585 / 100.0),
+                (40.106951871657756 / 100.0),
             ),
         }
     }
@@ -644,6 +688,7 @@ def solve_for_camera_matrix(
 
     if not all(o[-1] == _world_points[0][0][-1] for o in _world_points[0]):
         raise RuntimeError(f"{_world_points=} must have same z value")
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 1000, 0.001)
 
     repo_erro, camera_matrix, dist_coeffs, *_ = cv2.calibrateCamera(
         objectPoints=_world_points,
@@ -651,13 +696,49 @@ def solve_for_camera_matrix(
         imageSize=image_size,
         cameraMatrix=None,
         distCoeffs=None,
+        criteria=criteria,
     )
     if repo_erro > repo_erro_threshold:
         raise RuntimeError(f"{repo_erro=} must be less than 1e-6")
+    print(f"{repo_erro=}")
     return camera_matrix, dist_coeffs, repo_erro
 
 
 # dist_coeffs
+def solve_for_projection_matrix_v2(
+    world_points: np.ndarray,
+    image_points: np.ndarray,
+    camera_matrix: np.ndarray,
+    dist_coeffs: np.ndarray,
+    in_object_coordinate_frame: bool = True,
+):
+    import kornia
+
+    extrinsics = (
+        kornia.geometry.calibration.solve_pnp_dlt(
+            world_points=torch.tensor(world_points).unsqueeze(0),
+            img_points=torch.tensor(image_points).unsqueeze(0),
+            intrinsics=torch.tensor(camera_matrix).unsqueeze(0),
+        )
+        .squeeze(0)
+        .numpy()
+    )
+    print(f"{extrinsics[:3, :3]=}")
+    print(f"{extrinsics[:3, 3]=}")
+    rvec, _ = cv2.Rodrigues(extrinsics[:3, :3])
+    tvec = extrinsics[:3, 3]
+    reprojected_image_points, _ = cv2.projectPoints(
+        world_points, rvec, tvec, camera_matrix, dist_coeffs
+    )
+    reprojected_image_points = reprojected_image_points.reshape(-1, 2)
+    reprojection_error = np.linalg.norm(
+        reprojected_image_points - image_points, axis=1
+    ).mean()
+    print(f"{reprojection_error=}")
+
+    return rvec, tvec, reprojected_image_points
+
+
 def solve_for_projection_matrix(
     world_points: np.ndarray,
     image_points: np.ndarray,
@@ -673,12 +754,30 @@ def solve_for_projection_matrix(
         flags=cv2.SOLVEPNP_ITERATIVE,
         useExtrinsicGuess=False,
     )
+    success, rvec, tvec = cv2.solvePnP(
+        world_points,
+        image_points,
+        camera_matrix,
+        dist_coeffs,
+        rvec=rvec,
+        tvec=tvec,
+        flags=cv2.SOLVEPNP_ITERATIVE,
+        useExtrinsicGuess=True,
+    )
     if not success:
         raise RuntimeError(f"{success=} Failed to compute projection matrix")
-
+    reprojected_image_points, _ = cv2.projectPoints(
+        world_points, rvec, tvec, camera_matrix, dist_coeffs
+    )
+    reprojected_image_points = reprojected_image_points.reshape(-1, 2)
+    reprojection_error = np.linalg.norm(
+        reprojected_image_points - image_points, axis=1
+    ).mean()
+    print(f"{reprojection_error=}")
     # Convert rotation vector to rotation matrix
     rmat, _ = cv2.Rodrigues(rvec)
-    return rmat, tvec
+    # rmat[0, :] *= -1
+    return rmat, rvec, tvec, reprojected_image_points
     # R, t = cv2.Rodrigues(rvec)
     # T = np.append(t, [1], axis=0)
     # transformation_matrix = np.dot(R, T)
@@ -705,7 +804,8 @@ def solve_for_projection_matrix(
 def transfrom_points(
     points: np.ndarray, transformation_matrix: np.ndarray, tvec: np.ndarray
 ) -> np.ndarray:
-    return (transformation_matrix @ points.T).T - tvec.T
+    return np.dot(transformation_matrix.T, points.T + tvec).T
+    # return (transformation_matrix @ points.T).T - tvec.T
     # return (transformation_matrix @ (points.T-tvec)).T
 
 
@@ -715,3 +815,8 @@ def transform_points_inverse(
     return (transformation_matrix.T @ (points + tvec).T).T
 
     # return np.dot(transformation_matrix, points.T).T
+
+
+def denormalize_points(named_points, width, height):
+    points = np.array([(v[0] * width, v[1] * height) for _, v in named_points.items()])
+    return points
