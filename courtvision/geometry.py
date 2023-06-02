@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-court_scale = 100
+court_scale = 10
 
 
 @dataclass
@@ -761,7 +761,7 @@ def solve_for_projection_matrix(
         dist_coeffs,
         rvec=rvec,
         tvec=tvec,
-        flags=cv2.SOLVEPNP_ITERATIVE,
+        flags=cv2.SOLVEPNP_EPNP,
         useExtrinsicGuess=True,
     )
     if not success:

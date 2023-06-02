@@ -130,7 +130,7 @@ def points_to_heat_map(
         points = (
             np.array([v for _, v in named_points.items()], dtype=np.float32) + offset
         )
-    return points
+
     # Calculate the 2D histogram of the points
     heatmap, x_edges, y_edges = np.histogram2d(
         points[:, 0],

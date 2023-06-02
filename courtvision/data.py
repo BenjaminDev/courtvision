@@ -24,6 +24,11 @@ class KeypointValue(BaseModel):
     keypointlabels: list[str]
 
 
+class PolygonValue(BaseModel):
+    points: list[tuple[float, float]]
+    polygonlabels: list[str]
+
+
 class GeneralResult(BaseModel):
     kind: str = Field(..., alias="type")
     original_width: int
@@ -31,6 +36,7 @@ class GeneralResult(BaseModel):
     value: Union[
         RectValue,
         KeypointValue,
+        PolygonValue,
     ]
     to_name: str = ""
     from_name: str
