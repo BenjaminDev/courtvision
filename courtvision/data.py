@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 
 
 class AnnotationDataPath(BaseModel):
-    image: Path
+    image: Path = Field(..., alias="img")
 
 
 class RectValue(BaseModel):

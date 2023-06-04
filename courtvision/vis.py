@@ -144,7 +144,9 @@ def points_to_heat_map(
     return heatmap.T, points
 
 
-def draw_points(image, points, color=(0, 255, 0), radius=10, thickness=-1, labels=None):
+def draw_points(
+    image, points, color=(0, 255, 0), radius=10, thickness=-1, fontScale=1, labels=None
+):
     for i, p1 in enumerate(points[:]):
         cv2.circle(
             img=image,
@@ -159,7 +161,7 @@ def draw_points(image, points, color=(0, 255, 0), radius=10, thickness=-1, label
                 labels[i],
                 (int(p1[0]), int(p1[1])),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                1,
+                fontScale,
                 (0, 0, 0),
                 2,
             )

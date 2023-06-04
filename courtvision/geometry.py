@@ -12,7 +12,8 @@ class PadelCourt:
     length: float = 20.0 * court_scale
     backwall_height: float = 3.0 * court_scale
     serve_line_from_back_line: float = 2.0 * court_scale
-    line_width: float = 0.05
+    line_width: float = 0.05 * court_scale
+    net_height: float = 0.78 * court_scale  # 0.78m
 
     @classmethod
     @property
@@ -108,33 +109,33 @@ class PadelCourt:
 
     @classmethod
     @property
-    def m_top_front_left():
+    def m_top_front_left(cls):
         # TODO: add thes
         raise NotImplementedError()
 
     @classmethod
     @property
-    def n_top_front_right():
+    def n_top_front_right(cls):
         raise NotImplementedError()
 
     @classmethod
     @property
-    def o_top_back_left():
+    def o_top_back_left(cls):
         raise NotImplementedError()
 
     @classmethod
     @property
-    def p_top_back_right():
+    def p_top_back_right(cls):
         raise NotImplementedError()
 
     @classmethod
     @property
-    def q_top_net_line_left():
+    def q_top_net_line_left(cls):
         raise NotImplementedError()
 
     @classmethod
     @property
-    def r_top_net_line_right():
+    def r_top_net_line_right(cls):
         raise NotImplementedError()
 
     # Normalised:
@@ -288,6 +289,20 @@ corners_world_3d = {
     "n_top_front_right": (*PadelCourt.front_right, PadelCourt.backwall_height),
     "o_top_back_left": (*PadelCourt.back_left, PadelCourt.backwall_height),
     "p_top_back_right": (*PadelCourt.back_right, PadelCourt.backwall_height),
+    "q_top_net_line_left": (
+        *PadelCourt.net_line[0].flatten().tolist(),
+        PadelCourt.net_height,
+    ),
+    "r_top_net_line_right": (
+        *PadelCourt.net_line[1].flatten().tolist(),
+        PadelCourt.net_height,
+    ),
+    "s_top_net_center": (
+        PadelCourt.width / 2,
+        PadelCourt.length / 2,
+        PadelCourt.net_height,
+    ),
+    "t_center_center": (PadelCourt.width / 2, PadelCourt.length / 2, 0),
 }
 corners_frontwall_world_n = {
     "a_front_left": PadelCourt.front_left_vertical_plane_n,
@@ -586,6 +601,14 @@ def get_corners_image(file_name: str) -> dict:
                 (75.91812161348585 / 100.0),
                 (40.106951871657756 / 100.0),
             ),
+            "s_top_net_center": (
+                (50.175438596491226 / 100.0),
+                (41.12149532710281 / 100.0),
+            ),
+            "t_center_center": (
+                (50.175438596491226 / 100.0),
+                (47.97507788161994 / 100.0),
+            ),
         }
     }
     return annotated_images[frame_name]
@@ -686,8 +709,8 @@ def solve_for_camera_matrix(
     else:
         raise RuntimeError(f"{image_points.shape=} must be of length 2 or 3.")
 
-    if not all(o[-1] == _world_points[0][0][-1] for o in _world_points[0]):
-        raise RuntimeError(f"{_world_points=} must have same z value")
+    # if not all(o[-1] == _world_points[0][0][-1] for o in _world_points[0]):
+    # raise RuntimeError(f"{_world_points=} must have same z value")
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 1000, 0.001)
 
     repo_erro, camera_matrix, dist_coeffs, *_ = cv2.calibrateCamera(
@@ -754,18 +777,22 @@ def solve_for_projection_matrix(
         flags=cv2.SOLVEPNP_ITERATIVE,
         useExtrinsicGuess=False,
     )
-    success, rvec, tvec = cv2.solvePnP(
-        world_points,
-        image_points,
-        camera_matrix,
-        dist_coeffs,
-        rvec=rvec,
-        tvec=tvec,
-        flags=cv2.SOLVEPNP_EPNP,
-        useExtrinsicGuess=True,
-    )
+    inliners = None
     if not success:
         raise RuntimeError(f"{success=} Failed to compute projection matrix")
+    # success, rvec, tvec, inliners = cv2.solvePnPRansac(
+    #     world_points,
+    #     image_points,
+    #     camera_matrix,
+    #     dist_coeffs,
+    #     rvec=rvec,
+    #     tvec=tvec,
+    #     flags=cv2.SOLVEPNP_ITERATIVE,
+    #     useExtrinsicGuess=True,
+    #     # confidence=0.01,
+    #     # reprojectionError=8,
+    # )
+    print(f"{inliners=}")
     reprojected_image_points, _ = cv2.projectPoints(
         world_points, rvec, tvec, camera_matrix, dist_coeffs
     )
@@ -820,3 +847,9 @@ def transform_points_inverse(
 def denormalize_points(named_points, width, height):
     points = np.array([(v[0] * width, v[1] * height) for _, v in named_points.items()])
     return points
+
+
+if __name__ == "__main__":
+    import rerun as rr
+
+    rr.init("geometry", spawn=True)
