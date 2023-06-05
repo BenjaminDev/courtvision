@@ -11,6 +11,7 @@ class PadelCourt:
     width: float = 10.0 * court_scale
     length: float = 20.0 * court_scale
     backwall_height: float = 3.0 * court_scale
+    backall_fence_height: float = 4.0 * court_scale
     serve_line_from_back_line: float = 2.0 * court_scale
     line_width: float = 0.05 * court_scale
     net_height: float = 0.78 * court_scale  # 0.78m
@@ -303,6 +304,20 @@ corners_world_3d = {
         PadelCourt.net_height,
     ),
     "t_center_center": (PadelCourt.width / 2, PadelCourt.length / 2, 0),
+    "u_topfence_front_left": (0, 0, PadelCourt.backall_fence_height),
+    "v_topfence_front_right": (PadelCourt.width, 0, PadelCourt.backall_fence_height),
+    "w_topfence_back_left": (0, PadelCourt.length, PadelCourt.backall_fence_height),
+    "x_topfence_back_right": (
+        PadelCourt.width,
+        PadelCourt.length,
+        PadelCourt.backall_fence_height,
+    ),
+    "y_top_center_left": (0, PadelCourt.length / 2, PadelCourt.backwall_height),
+    "z_top_center_right": (
+        PadelCourt.width,
+        PadelCourt.length / 2,
+        PadelCourt.backwall_height,
+    ),
 }
 corners_frontwall_world_n = {
     "a_front_left": PadelCourt.front_left_vertical_plane_n,

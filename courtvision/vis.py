@@ -96,14 +96,18 @@ def plot_3d_lines(
 
 def load_timg(file_name):
     """Loads the image with OpenCV and converts to torch.Tensor."""
+    img = load_image(file_name)
+    # convert image to torch tensor
+    return K.image_to_tensor(img, None).float() / 255.0
+
+
+def load_image(file_name):
+    """Loads the image with OpenCV."""
     assert os.path.isfile(file_name), f"Invalid file {file_name}"  # nosec
     # load image with OpenCV
     if isinstance(file_name, Path):
         file_name = file_name.as_posix()
-    img = cv2.imread(file_name, cv2.IMREAD_COLOR)
-    # convert image to torch tensor
-    tensor = K.image_to_tensor(img, None).float() / 255.0
-    return K.color.bgr_to_rgb(tensor)
+    return cv2.cvtColor(cv2.imread(file_name, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
 
 
 def points_to_heat_map(

@@ -1,12 +1,16 @@
 from pathlib import Path
 from typing import Union
 
+import numpy as np
 from pydantic import BaseModel, Field
 from torch.utils.data import DataLoader
 
 
 class AnnotationDataPath(BaseModel):
     image: Path = Field(..., alias="img")
+
+    class Config:
+        allow_population_by_field_name = True
 
 
 class RectValue(BaseModel):
@@ -112,9 +116,7 @@ class CourtVisionDataset(VisionDataset):
         #             raise Exception("Could not find image")
         #         return filename
         server_file_path = Path(*sample.data.image.parts[2:])  # remove /data/
-        filename = Path(
-            f"/Users/benjamindecharmoy/projects/courtvision/labelstudiodata/media/{server_file_path}"
-        )
+        filename = Path(f"{root}/{server_file_path}")
         # print(f"{filename=}")
         return filename
 
@@ -230,3 +232,38 @@ def validate_dataloader(dataloader: DataLoader):
     for (targets, images) in dataloader:
         assert all(o["boxes"].shape for o in targets)
         assert all(o.shape for o in images)
+
+
+def get_keypoints_as_dict(
+    results: list[GeneralResult],
+) -> dict[str, tuple[float, float]]:
+    """Go through the results and return a dict of keypoints
+
+    Args:
+        results (list[GeneralResult]): List of results from the annotation
+
+    Returns:
+        dict[str, tuple[float, float]]: keypoints in absolute coordinates eg: keypoints["{some keypoint}"] = (x, y)
+    """
+    keypoints = {}
+    for result in results:
+        if isinstance(result.value, KeypointValue):
+            keypoints[result.value.keypointlabels[0]] = (
+                result.value.x / 100.0 * result.original_width,
+                result.value.y / 100.0 * result.original_height,
+            )
+    return keypoints
+
+
+def dict_to_points(
+    keypoints: dict[str, tuple[float, float]]
+) -> tuple[np.array, list[str]]:
+    """Unpacks a dict of keypoints into a np.array of points and a list of labels
+
+    Args:
+        keypoints (dict[str, tuple[float, float]]): Dict of keypoints
+
+    Returns:
+        np.array, list[str]: Nx2 array of points and list of labels
+    """
+    return np.array(list(keypoints.values())).astype(np.float32), list(keypoints.keys())
