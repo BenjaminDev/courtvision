@@ -864,6 +864,36 @@ def denormalize_points(named_points, width, height):
     return points
 
 
+def convert_obj_points_to_planar(object_points: np.array) -> np.array:
+    """Converts object points to planar points by finding the common axis and permuting the points so that the common axis is the last axis.
+    Assumes that the object points are planar.
+
+    Args:
+        object_points (np.array): _description_
+
+    Raises:
+        ValueError: When points are not planar
+
+    Returns:
+        np.array: _description_
+    """
+    common_axis = None
+    for axis in [0, 1, 2]:
+        if all(object_points[0, axis] == o for o in object_points[:, axis]):
+            common_axis = axis
+            break
+    if common_axis is None:
+        raise ValueError("Could not find common axis")
+    # permute the object points so that the common axis is the last axis
+    return np.concatenate(
+        [
+            object_points[:, [i for i in range(3) if i != common_axis]],
+            np.zeros((object_points.shape[0], 1)),
+        ],
+        axis=1,
+    ).astype(np.float32)
+
+
 if __name__ == "__main__":
     import rerun as rr
 

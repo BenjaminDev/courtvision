@@ -266,4 +266,5 @@ def dict_to_points(
     Returns:
         np.array, list[str]: Nx2 array of points and list of labels
     """
+    keypoints = dict(sorted(keypoints.items(), key=lambda x: x[0]))
     return np.array(list(keypoints.values())).astype(np.float32), list(keypoints.keys())
