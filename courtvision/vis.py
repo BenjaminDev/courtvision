@@ -6,15 +6,44 @@ import cv2
 import kornia as K
 import matplotlib.pyplot as plt
 import numpy as np
+import rerun as rr
 
 # import rerun_sdk
 import torch
 from mpl_toolkits.mplot3d import Axes3D
 from scipy import ndimage
 
-# from ultralytics import YOLO
 
-# model = YOLO("yolov8n.pt")
+def log_court_layout(
+    camera_matrix: np.array,
+    image_width: int,
+    image_height: int,
+    translation_vector: np.array,
+    rotation_vector: np.array,
+    court_mesh_path: Path,
+):
+    rr.log_pinhole(
+        "world/camera/image",
+        child_from_parent=camera_matrix,
+        width=image_width,
+        height=image_height,
+        timeless=True,
+    )
+    rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
+    rr.log_transform3d(
+        "world/camera",
+        transform=rr.TranslationAndMat3(
+            translation=translation_vector.squeeze(),
+            matrix=rotation_matrix,
+        ),
+        from_parent=True,
+    )
+    rr.log_point("world", np.array([0, 0, 0]))
+    rr.log_mesh_file(
+        "world",
+        mesh_format=rr.MeshFormat("GLB"),
+        mesh_path=court_mesh_path,
+    )
 
 
 def plot_coords(img: np.array, src_coords: np.array, show: bool = True, thickness=2):
@@ -90,6 +119,7 @@ def plot_3d_lines(
     plt_axis.set_ylabel("Y")
     plt_axis.set_zlabel("Z")
     plt_axis.set_aspect("equal")
+    plt_axis.margins(x=0)
     plt_axis.view_init(*view_init)
     return plt_axis, fig
 

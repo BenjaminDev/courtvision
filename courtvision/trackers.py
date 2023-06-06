@@ -11,6 +11,8 @@ from kornia.geometry import (
 )
 from torch import tensor
 
+from courtvision.geometry import PadelCourt
+
 
 class StateIdx:
     x: int = 0
@@ -27,7 +29,12 @@ class StateIdx:
 
 class Tracker:
     def __init__(
-        self, num_particles: int = 1000, world_to_cam: torch.Tensor | None = None
+        self,
+        num_particles: int = 1000,
+        world_to_cam: torch.Tensor | None = None,
+        court_size: torch.tensor = torch.tensor(
+            [PadelCourt.width, PadelCourt.length, PadelCourt.backall_fence_height]
+        ),
     ) -> None:
         self.num_particles = num_particles
         # state: [x, y, z, vx, vy, zv, ax, ay, az, ax, ay, az, weight]
@@ -35,6 +42,15 @@ class Tracker:
             (num_particles, 3 * 3 + 1),
             names=["num_particles", "state"],
         )
+        self.states[
+            :, StateIdx.x
+        ] = 50.0  # self.states[:,StateIdx.x] * court_size[StateIdx.x] +court_size[StateIdx.x]/2
+        self.states[
+            :, StateIdx.y
+        ] = 70.0  # self.states[:,StateIdx.y] * court_size[StateIdx.y] + court_size[StateIdx.y]/2
+        self.states[
+            :, StateIdx.z
+        ] = 5.0  # self.states[:,StateIdx.z] * court_size[StateIdx.z] + court_size[StateIdx.z]/2
         self.states[:, StateIdx.weight] = torch.abs(
             self.normalized_weights(self.states)
         )
@@ -49,6 +65,10 @@ class Tracker:
             (self.num_particles, 1)
         )
 
+    @property
+    def xyz(self) -> torch.tensor:
+        return self.states[:, StateIdx.x : StateIdx.z + 1].clone()
+
     @staticmethod
     def normalized_weights(states: torch.tensor) -> torch.tensor:
         return (
@@ -58,16 +78,18 @@ class Tracker:
 
     @staticmethod
     def state_to_observation(state, H):
-        x_y_z_1_positions = convert_points_to_homogeneous(state[:, :3].rename(None))
+        x_y_z_1_positions = convert_points_to_homogeneous(
+            state[:, : StateIdx.z + 1].rename(None)
+        )
         return convert_points_from_homogeneous((H @ x_y_z_1_positions.T).T)
 
     # # Define the likelihood function
-    @staticmethod
-    def likelihood(obs_state: torch.tensor, pred_state: torch.tensor):
+    def likelihood(self, obs_state: torch.tensor, pred_state: torch.tensor):
         sigma = 0.1  # Standard deviation of the observation noise
         from torch.nn.functional import mse_loss
 
-        mse = mse_loss(pred_state, obs_state, reduction="none").sum(dim=1)
+        pred_obs = self.state_to_observation(pred_state, self.H)
+        mse = mse_loss(pred_obs, obs_state, reduction="none").sum(dim=1)
         p = torch.min(torch.exp(0.5 * mse / sigma) ** 2, torch.tensor(1e-3))
         return p
 
