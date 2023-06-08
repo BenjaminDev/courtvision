@@ -1293,8 +1293,8 @@
     },
     {
       "type": "rectangle",
-      "version": 497,
-      "versionNonce": 812443466,
+      "version": 590,
+      "versionNonce": 1749729686,
       "isDeleted": false,
       "id": "gKaAAl34RxL3Bg6zNWKWy",
       "fillStyle": "solid",
@@ -1303,8 +1303,8 @@
       "roughness": 2,
       "opacity": 100,
       "angle": 0,
-      "x": 1181.798178390963,
-      "y": 804.7070270144236,
+      "x": 879.1449801487754,
+      "y": 758.7226520144236,
       "strokeColor": "#000000",
       "backgroundColor": "transparent",
       "width": 168.18031532021422,
@@ -1320,14 +1320,14 @@
           "id": "eseP6Bfe0aqs7xVeNCPDX"
         }
       ],
-      "updated": 1686226459905,
+      "updated": 1686226888278,
       "link": null,
       "locked": false
     },
     {
       "type": "text",
-      "version": 843,
-      "versionNonce": 227035542,
+      "version": 936,
+      "versionNonce": 669797066,
       "isDeleted": false,
       "id": "eseP6Bfe0aqs7xVeNCPDX",
       "fillStyle": "solid",
@@ -1336,8 +1336,8 @@
       "roughness": 2,
       "opacity": 100,
       "angle": 0,
-      "x": 1210.6665953284137,
-      "y": 819.3952522392126,
+      "x": 908.0133970862262,
+      "y": 773.4108772392126,
       "strokeColor": "#000000",
       "backgroundColor": "transparent",
       "width": 110.4434814453125,
@@ -1346,7 +1346,7 @@
       "groupIds": [],
       "roundness": null,
       "boundElements": [],
-      "updated": 1686226542998,
+      "updated": 1686226888278,
       "link": null,
       "locked": false,
       "fontSize": 15.01519051419508,
@@ -1361,8 +1361,8 @@
     },
     {
       "type": "line",
-      "version": 582,
-      "versionNonce": 631598602,
+      "version": 778,
+      "versionNonce": 695246282,
       "isDeleted": false,
       "id": "RzmPI5G1pH25Z-xNUQzhs",
       "fillStyle": "solid",
@@ -1371,19 +1371,19 @@
       "roughness": 2,
       "opacity": 100,
       "angle": 0,
-      "x": 1146.6620369724446,
-      "y": 812.4753009921335,
+      "x": 987.7497514170097,
+      "y": 752.2558053968216,
       "strokeColor": "#000000",
       "backgroundColor": "transparent",
-      "width": 106.27369857222853,
-      "height": 25.340444623178364,
+      "width": 173.49118676109387,
+      "height": 70.39117801145883,
       "seed": 1113906726,
       "groupIds": [],
       "roundness": {
         "type": 2
       },
       "boundElements": [],
-      "updated": 1686226459905,
+      "updated": 1686226895589,
       "link": null,
       "locked": false,
       "startBinding": null,
@@ -1393,23 +1393,23 @@
       "endArrowhead": null,
       "points": [
         [
-          0,
-          0
+          154.12241234703137,
+          60.21949559531176
         ],
         [
-          60.45505150146765,
-          -25.340444623178364
+          47.13555358141798,
+          -10.171682416147064
         ],
         [
-          106.27369857222853,
-          -11.399669483351726
+          -19.3687744140625,
+          3.373181062443109
         ]
       ]
     },
     {
       "type": "line",
-      "version": 617,
-      "versionNonce": 70766486,
+      "version": 765,
+      "versionNonce": 2141756822,
       "isDeleted": false,
       "id": "dJUEERWAZXNCrZSiWYkf2",
       "fillStyle": "solid",
@@ -1422,15 +1422,15 @@
       "y": 824.4776383556543,
       "strokeColor": "#000000",
       "backgroundColor": "transparent",
-      "width": 108.5593442725495,
-      "height": 63.8302376117455,
+      "width": 195.56565572745058,
+      "height": 14.325537904714224,
       "seed": 242711014,
       "groupIds": [],
       "roundness": {
         "type": 2
       },
       "boundElements": [],
-      "updated": 1686226459905,
+      "updated": 1686226900504,
       "link": null,
       "locked": false,
       "startBinding": null,
@@ -1444,12 +1444,12 @@
           0
         ],
         [
-          26.092822254535534,
-          63.8302376117455
+          -93.25568848765192,
+          14.325537904714224
         ],
         [
-          108.5593442725495,
-          47.31633189691742
+          -195.56565572745058,
+          2.0163441039486543
         ]
       ]
     },
