@@ -42,6 +42,7 @@
               pkgs.ffmpeg
               pkgs.git-lfs
               pkgs.poetry
+              pkgs.dvc-with-remotes
               # pkgs.codeql
               pkgs.zsh
               pkgs.starship

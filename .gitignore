@@ -1,0 +1,4 @@
+.venv/*
+big_data_raw/**/*.mp4
+big_data_raw/**/*.webm
+*.mp4
