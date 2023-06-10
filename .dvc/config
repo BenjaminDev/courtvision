@@ -1,5 +1,2 @@
-[core]
-    remote = padel-dataset
-['remote "padel-dataset"']
-    url = s3://courtvision-padel-dataset/raw
-    profile = default
+[cache]
+    dir = /mnt/vol_b/dvc_cache

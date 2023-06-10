@@ -6,7 +6,7 @@ import cv2
 import kornia as K
 import matplotlib.pyplot as plt
 import numpy as np
-import rerun as rr
+
 
 # import rerun_sdk
 import torch
@@ -22,6 +22,7 @@ def log_court_layout(
     rotation_vector: np.array,
     court_mesh_path: Path,
 ):
+    import rerun as rr    
     rr.log_pinhole(
         "world/camera/image",
         child_from_parent=camera_matrix,
