@@ -40,6 +40,8 @@
               pkgs.poetry
               # pkgs.dvc-with-remotes
               # pkgs.codeql
+              pkgs.awscli2
+              pkgs.s3cmd
               pkgs.docker
               pkgs.ruff
               pkgs.zsh

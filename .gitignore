@@ -22,3 +22,9 @@ courtvision_balldetector/data/*
 dist/*
 courtvision/lightning_logs/*
 courtvision/wandb/*
+big_data_raw/**/*.mp4
+big_data_raw/**/*.webm
+*.mp4
+courtvision_balldetector/courtvision-0.1.0-py3-none-any.whl
+dist/*
+courtvision_balldetector/logs/*

@@ -137,3 +137,8 @@ def fit(self, completions, workdir=None, **kwargs):
 After you wrap your model code with the class, define the loaders, and define the methods, you're ready to run your model as an ML backend with Label Studio.
 
 For other examples of ML backends, refer to the [examples in this repository](label_studio_ml/examples). These examples aren't production-ready, but can help you set up your own code as a Label Studio ML backend.
+
+
+# Using S3:
+
+set CORS to "*" in origins https://docs.aws.amazon.com/AmazonS3/latest/userguide/ManageCorsUsing.html
