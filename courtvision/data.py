@@ -13,6 +13,12 @@ class AnnotationDataPath(BaseModel):
         allow_population_by_field_name = True
 
 
+class LabelValue(BaseModel):
+    start: float
+    end: float
+    labels: list[str]
+
+
 class RectValue(BaseModel):
     x: float
     y: float
@@ -41,6 +47,7 @@ class GeneralResult(BaseModel):
         RectValue,
         KeypointValue,
         PolygonValue,
+        LabelValue,
     ]
     to_name: str = ""
     from_name: str
