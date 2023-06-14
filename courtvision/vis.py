@@ -22,6 +22,14 @@ def log_court_layout(
     rotation_vector: np.array,
     court_mesh_path: Path,
 ):
+    """log_court_layout
+
+    Parameters:
+        name: The name of the person to greet.
+
+    Returns:
+        A greeting message.
+    """
     rr.log_pinhole(
         "world/camera/image",
         child_from_parent=camera_matrix,

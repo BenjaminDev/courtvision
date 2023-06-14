@@ -52,10 +52,10 @@
             ];
             # Environment variables to set
             shellHook = ''
-              eval "$(starship init zsh)"
-              poetry config virtualenvs.create = true --local
-              poetry virtualenvs.in-project = true --local
-              poetry install
+              eval "$(starship init bash)"
+              poetry config virtualenvs.create  true --local
+              poetry config virtualenvs.in-project  true --local
+              # poetry install
             '';
           };
 
