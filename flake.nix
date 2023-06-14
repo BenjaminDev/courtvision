@@ -1,10 +1,6 @@
 {
   description = "Example Python development environment for Zero to Nix";
 
-  # Flake inputs
-  # inputs = {
-  #   nixpkgs.url = "github:NixOS/nixpkgs"; # also valid: "nixpkgs"
-  # };
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
   };
@@ -42,9 +38,7 @@
               pkgs.ffmpeg
               pkgs.git-lfs
               pkgs.poetry
-              # pkgs.dvc-with-remotes
               pkgs.ruff
-              # pkgs.codeql
               pkgs.zsh
               pkgs.starship
               pkgs.podman
@@ -58,7 +52,10 @@
             ];
             # Environment variables to set
             shellHook = ''
-              eval "$(starship init bash)"
+              eval "$(starship init zsh)"
+              poetry config virtualenvs.create = true --local
+              poetry virtualenvs.in-project = true --local
+              poetry install
             '';
           };
 

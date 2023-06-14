@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 from pydantic import BaseModel, Field
@@ -7,7 +7,9 @@ from torch.utils.data import DataLoader
 
 
 class AnnotationDataPath(BaseModel):
-    image: Path = Field(..., alias="img")
+    video_url: Optional[Path]
+    video_local_path: Optional[Path]
+    image: Optional[Path] = Field(None, alias="img")
 
     class Config:
         allow_population_by_field_name = True
@@ -39,6 +41,12 @@ class PolygonValue(BaseModel):
     polygonlabels: list[str]
 
 
+class ClipSegmentResult(BaseModel):
+    original_length: float
+    kind: str = Field(..., alias="type")
+    value: LabelValue
+
+
 class GeneralResult(BaseModel):
     kind: str = Field(..., alias="type")
     original_width: int
@@ -47,7 +55,7 @@ class GeneralResult(BaseModel):
         RectValue,
         KeypointValue,
         PolygonValue,
-        LabelValue,
+        # LabelValue,
     ]
     to_name: str = ""
     from_name: str
@@ -55,7 +63,7 @@ class GeneralResult(BaseModel):
 
 class Annotation(BaseModel):
     unique_id: str
-    result: list[GeneralResult]
+    result: Union[list[GeneralResult], list[ClipSegmentResult]]
 
 
 class CourtAnnotatedSample(BaseModel):
@@ -275,3 +283,84 @@ def dict_to_points(
     """
     keypoints = dict(sorted(keypoints.items(), key=lambda x: x[0]))
     return np.array(list(keypoints.values())).astype(np.float32), list(keypoints.keys())
+
+
+def download_data_item(s3_uri: str, local_path: Path, s3_client=None, use_cached=True):
+
+    if use_cached and local_path.exists():
+        return local_path
+
+    if s3_client is None:
+        import boto3
+
+        session = boto3.Session(profile_name="courtvision-padel-dataset")
+        s3_client = session.client("s3", region_name="us-east-1")
+    bucket_name = s3_uri.parents[-3].name
+    object_name = "/".join(s3_uri.parts[-3:])
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(local_path, "wb") as fp:
+        s3_client.download_fileobj(bucket_name, object_name, fp)
+    return local_path
+
+
+import enum
+from hashlib import md5
+
+import torchvision
+
+
+class StreamType(enum.Enum):
+    VIDEO = "video"
+    AUDIO = "image"
+
+
+def frames_from_clip_segments(
+    dataset: PadelDataset, local_path: Path, stream_type: StreamType = StreamType.VIDEO
+) -> tuple[dict[str, torch.Tensor], str]:
+    """
+    Graps frames for each clip segment in the dataset. A unique id is generated for each clip segment.
+    Frames can be either audio or video frames.
+
+    Args:
+        dataset (PadelDataset): A dataset of annotated clips
+        local_path (Path): if the file is not already downloaded, it will be downloaded to this path
+        stream_type (StreamType, optional): Either `StreamType.VIDEO` or `StreamType.AUDIO`. Defaults to StreamType.VIDEO.
+
+    Returns:
+        tuple[dict[str, torch.Tensor], str]: returns `{"data": torch.Tensor, "pts": torch.Tensor}, unique_id`
+
+        where `unique_id` is the md5 of the annotation unique_id and the start and end times of the clip.
+        And `pts` is a presentation timestamp of the frame expressed in seconds.
+
+    Yields:
+        Iterator[tuple[dict[str, torch.Tensor], str]]: yeilds `{"data": torch.Tensor, "pts": torch.Tensor}, unique_id`
+    """
+    for sample in dataset.samples:
+        sample.data.video_local_path = download_data_item(
+            s3_uri=sample.data.video_url,
+            local_path=local_path
+            / sample.data.video_url.parent.name
+            / sample.data.video_url.name,
+        )
+    for sample in dataset.samples:
+        for annotation in sample.annotations:
+            for result in annotation.result:
+                if isinstance(result, ClipSegmentResult):
+                    start_time = result.value.start
+                    end_time = result.value.end
+                    reader = torchvision.io.VideoReader(
+                        sample.data.video_local_path.as_posix(), stream_type.value
+                    )
+                    reader.seek(start_time)
+                    while frame := next(reader):
+                        if frame["pts"] < start_time:
+                            # seeks is not always accuarte!
+                            # burn frames until we get to the right time.
+                            # Alternative - build torchvison from source with video_reader backend
+                            continue
+                        if frame["pts"] > end_time:
+                            break
+                        yield frame, md5(
+                            f"{start_time}{end_time}{annotation.unique_id}".encode()
+                        ).hexdigest()
