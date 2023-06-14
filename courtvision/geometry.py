@@ -551,6 +551,127 @@ def get_corners_verital_plane_on_image(
     return points
 
 
+def get_planar_points_padel_court(available_labels: set[str]) -> list[set]:
+    # floor plane points
+    available_planes_for_calibration = []
+    floor_plane_points = {
+        "a_front_left",
+        "b_front_right",
+        "c_back_left",
+        "d_back_right",
+        "e_left_near_serve_line",
+        "f_right_near_serve_line",
+        "g_left_far_serve_line",
+        "h_right_far_serve_line",
+        "i_center_line_far",
+        "j_net_line_left",
+        "k_center_line_near",
+        "l_net_line_right",
+        "t_center_center",
+    }
+    left_vertical_plane_points = {
+        "a_front_left",
+        "c_back_left",
+        "e_left_near_serve_line",
+        "g_left_far_serve_line",
+        "j_net_line_left",
+        "m_top_front_left",
+        "o_top_back_left",
+        "q_top_net_line_left",
+        "u_topfence_front_left",
+        "w_topfence_back_left",
+    }
+
+    right_vertical_plane_points = {
+        "b_front_right",
+        "d_back_right",
+        "f_right_near_serve_line",
+        "h_right_far_serve_line",
+        "n_top_front_right",
+        "p_top_back_right",
+        "r_top_net_line_right",
+        "v_topfence_front_right",
+        "x_topfence_back_right",
+        "z_top_center_right",
+        "l_net_line_right",
+    }
+    front_vertical_plane_points = {
+        "a_front_left",
+        "b_front_right",
+        "m_top_front_left",
+        "n_top_front_right",
+        "u_topfence_front_left",
+        "v_topfence_front_right",
+    }
+    back_vertical_plane_points = {
+        "c_back_left",
+        "d_back_right",
+        "o_top_back_left",
+        "p_top_back_right",
+        "w_topfence_back_left",
+        "x_topfence_back_right",
+    }
+
+    center_vertical_plane_points = {
+        "j_net_line_left",
+        "q_top_net_line_left",
+        "r_top_net_line_right",
+        "l_net_line_right",
+        "t_center_center",
+    }
+    if available_labels.intersection(floor_plane_points) == floor_plane_points:
+        available_planes_for_calibration.append(floor_plane_points)
+    if (
+        available_labels.intersection(left_vertical_plane_points)
+        == left_vertical_plane_points
+    ):
+        available_planes_for_calibration.append(left_vertical_plane_points)
+    if (
+        available_labels.intersection(right_vertical_plane_points)
+        == right_vertical_plane_points
+    ):
+        available_planes_for_calibration.append(right_vertical_plane_points)
+    if (
+        available_labels.intersection(front_vertical_plane_points)
+        == front_vertical_plane_points
+    ):
+        available_planes_for_calibration.append(front_vertical_plane_points)
+    if (
+        available_labels.intersection(back_vertical_plane_points)
+        == back_vertical_plane_points
+    ):
+        available_planes_for_calibration.append(back_vertical_plane_points)
+    if (
+        available_labels.intersection(center_vertical_plane_points)
+        == center_vertical_plane_points
+    ):
+        available_planes_for_calibration.append(center_vertical_plane_points)
+    return available_planes_for_calibration
+
+
+def get_planar_point_correspondences(
+    world_points: dict[str, tuple[float, float]],
+    image_points: dict[str, tuple[float, float]],
+) -> list[tuple[np.ndarray, np.ndarray]]:
+    # Check what image points are available
+    available_labels = set(image_points.keys())
+    available_planes_for_calibration = get_planar_points_padel_court(
+        available_labels=available_labels
+    )
+    from courtvision.data import dict_to_points
+
+    planar_point_correspondences = []
+    for plane in available_planes_for_calibration:
+        world_points_on_plane_dict = {k: world_points[k] for k in plane}
+        image_points_on_plane_dict = {k: image_points[k] for k in plane}
+        world_points_on_plane, _ = dict_to_points(world_points_on_plane_dict)
+        image_points_on_plane, _ = dict_to_points(image_points_on_plane_dict)
+        planar_point_correspondences.append(
+            (world_points_on_plane, image_points_on_plane)
+        )
+    return planar_point_correspondences
+
+
 def get_corners_image(file_name: str) -> dict:
     file_path = Path(file_name)
     frame_name = "/".join([file_path.parent.name, file_path.stem])

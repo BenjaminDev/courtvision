@@ -36,15 +36,38 @@ class KeypointValue(BaseModel):
     keypointlabels: list[str]
 
 
+class VideoRectSequence(BaseModel):
+
+    frame: int
+    enabled: bool
+    rotation: float
+    x: float
+    y: float
+    width: float
+    height: float
+    time: float
+
+
+class VideoRectValue(BaseModel):
+    framesCount: int
+    duration: float
+    sequence: list[VideoRectSequence]
+    labels: list[str]
+    # videorectangle: list[str]
+
+
 class PolygonValue(BaseModel):
     points: list[tuple[float, float]]
     polygonlabels: list[str]
 
 
 class ClipSegmentResult(BaseModel):
-    original_length: float
+    original_length: Optional[float]
     kind: str = Field(..., alias="type")
-    value: LabelValue
+    value: Union[
+        VideoRectValue,
+        LabelValue,
+    ]
 
 
 class GeneralResult(BaseModel):
@@ -55,7 +78,6 @@ class GeneralResult(BaseModel):
         RectValue,
         KeypointValue,
         PolygonValue,
-        # LabelValue,
     ]
     to_name: str = ""
     from_name: str
@@ -63,7 +85,10 @@ class GeneralResult(BaseModel):
 
 class Annotation(BaseModel):
     unique_id: str
-    result: Union[list[GeneralResult], list[ClipSegmentResult]]
+    result: Union[
+        list[ClipSegmentResult],
+        list[GeneralResult],
+    ]
 
 
 class CourtAnnotatedSample(BaseModel):
@@ -364,3 +389,28 @@ def frames_from_clip_segments(
                         yield frame, md5(
                             f"{start_time}{end_time}{annotation.unique_id}".encode()
                         ).hexdigest()
+
+
+def get_normalized_calibration_image_points(dataset: PadelDataset):
+    """
+    Note: This assumes that the calibration points are the only annotations with a VideoRectValue
+    and the points of the same label are in the same place as the last one will be used.
+
+    Note: Points are normalized to 0-1. Not -1 to 1 like in kornia.
+    Args:
+        dataset (PadelDataset): Dataset descibing a video with calibration points.
+
+    Returns:
+        image_points (dict[str, tuple[float, float]]): Returns a dict of image points in normalized coordinates.
+    """
+    calibration_image_points = {}
+    for sample in dataset.samples:
+        for annotation in sample.annotations:
+            for result in annotation.result:
+                if isinstance(result.value, VideoRectValue):
+                    for label, rect in zip(result.value.labels, result.value.sequence):
+                        calibration_image_points[label] = (
+                            (rect.x + rect.width / 2) / 100.0,
+                            (rect.y + rect.height / 2) / 100.0,
+                        )
+    return calibration_image_points
