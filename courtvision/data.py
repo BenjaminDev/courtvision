@@ -410,15 +410,15 @@ def get_normalized_calibration_image_points_and_clip_ids(
     calibration_image_points = {}
     clip_source = set([])
     for sample in dataset.samples:
+        if sample.data.video_url:
+            clip_source.add(sample.data.video_url)
+        elif sample.data.video_local_path:
+            clip_source.add(sample.data.video_local_path)
+        elif sample.data.image:
+            clip_source.add(sample.data.image)
+        else:
+            raise ValueError("No clip source found")
         for annotation in sample.annotations:
-            if annotation.data.video_url:
-                clip_source.add(annotation.data.video_url)
-            elif annotation.data.video_local_path:
-                clip_source.add(annotation.data.video_local_path)
-            elif annotation.data.image:
-                clip_source.add(annotation.data.image)
-            else:
-                raise ValueError("No clip source found")
 
             for result in annotation.result:
                 if isinstance(result.value, VideoRectValue):

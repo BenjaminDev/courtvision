@@ -1065,7 +1065,7 @@ def convert_obj_points_to_planar(object_points: np.array) -> np.array:
 
 @dataclass
 class CameraInfo:
-    valid_for_clip_ids: list[str]
+    valid_for_clip_ids: set[str]
     camera_matrix: np.array
     distortion_coefficients: np.array
     rotation_vector: np.array
@@ -1087,12 +1087,12 @@ class CameraInfo:
             image_width=self.image_width,
             image_height=self.image_height,
             error_in_reprojecred_planar_points=self.error_in_reprojecred_planar_points,
-            clip_id=self.clip_id,
+            valid_for_clip_ids=self.valid_for_clip_ids,
         )
 
 
 def calibrate_and_evaluate(
-    clip_id,
+    valid_clip_ids: set[str],
     *,
     calibration_correspondences_selected,
     pose_correspondences_selected,
@@ -1155,7 +1155,91 @@ def calibrate_and_evaluate(
         image_height=image_height,
         error_in_reprojecred_planar_points=repo_erro,
         error_in_reprojecred_points=reprojection_error,
+        valid_for_clip_ids=valid_clip_ids,
     )
+
+
+from dataclasses import dataclass
+from itertools import chain, combinations, product
+
+
+def find_optimal_calibration_and_pose(
+    valid_clip_ids: set[str],
+    calibration_correspondences: list[tuple[np.array, np.array]],
+    pose_correspondences: list[tuple[np.array, np.array]],
+    image_width: int,
+    image_height: int,
+    all_image_points: np.array,
+    all_world_points: np.array,
+) -> CameraInfo:
+    """
+    Givern a set of calibration and pose correspondences, find the optimal calibration and pose.
+    This is done by building up combinations of these sets and evaluating the reprojection error.
+    The reprojection error is the mean of the euclidean distance between the reprojected points and the actual points.
+    The evvaluation is on all `all_image_points` and `all_world_points`.
+
+    Args:
+        valid_clip_ids (set[str]): _description_
+        calibration_correspondences (list[tuple[np.array, np.array]]): _description_
+        pose_correspondences (list[tuple[np.array, np.array]]): _description_
+        image_width (int): Image width
+        image_height (int): Image height
+        all_image_points (np.array): 3D points that we want to reproject.
+        all_world_points (np.array): 2D points that are where we expect the 3D points to be reprojected to.
+
+    Raises:
+        RuntimeError: _description_
+
+    Returns:
+        CameraInfo: _description_
+    """
+    CALIBRATION_MIN_PAIRS = 4
+    CALIBRATION_MAX_PAIRS = min(8, len(calibration_correspondences))
+
+    POSE_MIN_PAIRS = 4
+    POSE_MAX_PAIRS = min(8, len(pose_correspondences))
+
+    calibration_indexes = [o for o in range(len(calibration_correspondences))]
+    calibration_selected_pairs: list[tuple[int, ...]] = list(
+        chain.from_iterable(
+            (combinations(calibration_indexes, num_pairs_to_use))
+            for num_pairs_to_use in range(CALIBRATION_MIN_PAIRS, CALIBRATION_MAX_PAIRS)
+        )
+    )
+
+    pose_indexes = [o for o in range(len(pose_correspondences))]
+    pose_selected_pairs: list[tuple[int, ...]] = list(
+        chain.from_iterable(
+            (combinations(pose_indexes, num_pairs_to_use))
+            for num_pairs_to_use in range(POSE_MIN_PAIRS, POSE_MAX_PAIRS)
+        )
+    )
+
+    best_error_in_reprojecred_points = 10000.0
+    best_camera_info = None
+
+    for calibration_pair, pose_pair in product(
+        calibration_selected_pairs, pose_selected_pairs
+    ):
+        calibration_correspondences_selection = [
+            calibration_correspondences[o] for o in calibration_pair
+        ]
+        pose_correspondences_selection = [pose_correspondences[o] for o in pose_pair]
+
+        camera_info = calibrate_and_evaluate(
+            valid_clip_ids=valid_clip_ids,
+            calibration_correspondences_selected=calibration_correspondences_selection,
+            pose_correspondences_selected=pose_correspondences_selection,
+            image_width=image_width,
+            image_height=image_height,
+            all_image_points=all_image_points,
+            all_world_points=all_world_points,
+        )
+        if camera_info.error_in_reprojecred_points < best_error_in_reprojecred_points:
+            best_camera_info = camera_info
+    if best_camera_info is None:
+        raise RuntimeError("Failed to find optimal calibration and pose")
+    return best_camera_info
 
 
 if __name__ == "__main__":
