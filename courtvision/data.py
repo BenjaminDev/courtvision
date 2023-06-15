@@ -63,6 +63,7 @@ class PolygonValue(BaseModel):
 
 class ClipSegmentResult(BaseModel):
     original_length: Optional[float]
+    clip_id: str = Field(..., alias="id")
     kind: str = Field(..., alias="type")
     value: Union[
         VideoRectValue,
@@ -391,21 +392,34 @@ def frames_from_clip_segments(
                         ).hexdigest()
 
 
-def get_normalized_calibration_image_points(dataset: PadelDataset):
+def get_normalized_calibration_image_points_and_clip_ids(
+    dataset: PadelDataset,
+) -> tuple[dict[str, tuple[float, float]], set[str]]:
     """
     Note: This assumes that the calibration points are the only annotations with a VideoRectValue
-    and the points of the same label are in the same place as the last one will be used.
+    and the points of the same label are in the same place as the last one which will be used.
 
     Note: Points are normalized to 0-1. Not -1 to 1 like in kornia.
     Args:
         dataset (PadelDataset): Dataset descibing a video with calibration points.
 
     Returns:
-        image_points (dict[str, tuple[float, float]]): Returns a dict of image points in normalized coordinates.
+        image_points (dict[str, tuple[float, float]]): Returns a dict of image points in normalized coordinates. And
+        the clip_ids (set[str]) that are accociated with the calibration points.
     """
     calibration_image_points = {}
+    clip_source = set([])
     for sample in dataset.samples:
         for annotation in sample.annotations:
+            if annotation.data.video_url:
+                clip_source.add(annotation.data.video_url)
+            elif annotation.data.video_local_path:
+                clip_source.add(annotation.data.video_local_path)
+            elif annotation.data.image:
+                clip_source.add(annotation.data.image)
+            else:
+                raise ValueError("No clip source found")
+
             for result in annotation.result:
                 if isinstance(result.value, VideoRectValue):
                     for label, rect in zip(result.value.labels, result.value.sequence):
@@ -413,4 +427,4 @@ def get_normalized_calibration_image_points(dataset: PadelDataset):
                             (rect.x + rect.width / 2) / 100.0,
                             (rect.y + rect.height / 2) / 100.0,
                         )
-    return calibration_image_points
+    return calibration_image_points, clip_source

@@ -12,7 +12,7 @@ class PadelCourt:
     length: float = 20.0 * court_scale
     backwall_height: float = 3.0 * court_scale
     backall_fence_height: float = 4.0 * court_scale
-    serve_line_from_back_line: float = 2.0 * court_scale
+    serve_line_from_back_line: float = 3.0 * court_scale
     line_width: float = 0.05 * court_scale
     net_height: float = 0.78 * court_scale  # 0.78m
 
@@ -551,7 +551,9 @@ def get_corners_verital_plane_on_image(
     return points
 
 
-def get_planar_points_padel_court(available_labels: set[str]) -> list[set]:
+def get_planar_points_padel_court(
+    available_labels: set[str], minimal_set_count: int
+) -> list[set]:
     # floor plane points
     available_planes_for_calibration = []
     floor_plane_points = {
@@ -617,46 +619,67 @@ def get_planar_points_padel_court(available_labels: set[str]) -> list[set]:
         "q_top_net_line_left",
         "r_top_net_line_right",
         "l_net_line_right",
-        "t_center_center",
+        # "t_center_center",
     }
-    if available_labels.intersection(floor_plane_points) == floor_plane_points:
-        available_planes_for_calibration.append(floor_plane_points)
-    if (
-        available_labels.intersection(left_vertical_plane_points)
-        == left_vertical_plane_points
-    ):
-        available_planes_for_calibration.append(left_vertical_plane_points)
-    if (
-        available_labels.intersection(right_vertical_plane_points)
-        == right_vertical_plane_points
-    ):
-        available_planes_for_calibration.append(right_vertical_plane_points)
-    if (
-        available_labels.intersection(front_vertical_plane_points)
-        == front_vertical_plane_points
-    ):
-        available_planes_for_calibration.append(front_vertical_plane_points)
-    if (
-        available_labels.intersection(back_vertical_plane_points)
-        == back_vertical_plane_points
-    ):
-        available_planes_for_calibration.append(back_vertical_plane_points)
-    if (
-        available_labels.intersection(center_vertical_plane_points)
-        == center_vertical_plane_points
-    ):
-        available_planes_for_calibration.append(center_vertical_plane_points)
+    top_horizontal_plane_points = {
+        "m_top_front_left",
+        "n_top_front_right",
+        "o_top_back_left",
+        "p_top_back_right",
+        "y_top_center_left",
+        "z_top_center_right",
+    }
+    topfence_horizontal_plane_points = {
+        "u_topfence_front_left",
+        "v_topfence_front_right",
+        "w_topfence_back_left",
+        "x_topfence_back_right",
+    }
+    all_planar_sets = [
+        floor_plane_points,
+        left_vertical_plane_points,
+        right_vertical_plane_points,
+        front_vertical_plane_points,
+        back_vertical_plane_points,
+        center_vertical_plane_points,
+        top_horizontal_plane_points,
+        topfence_horizontal_plane_points,
+    ]
+    # from itertools import combinations
+    # from itertools import chain
+    # selected_available_labels = [set(o) for  o in chain.from_iterable(
+    #     set(combinations(available_labels, o))
+    #     for o in range(
+    #             minimal_set_count,
+    #             minimal_set_count +1,
+    #             # len(available_labels) + 1,
+    #     )
+    # )]
+
+    # for selected_labels in selected_available_labels:
+    for planar_set in all_planar_sets:
+        if len(available_labels.intersection(planar_set)) >= minimal_set_count:
+            available_planes_for_calibration.append(
+                available_labels.intersection(planar_set)
+            )
+
     return available_planes_for_calibration
+
+
+from typing import Optional
 
 
 def get_planar_point_correspondences(
     world_points: dict[str, tuple[float, float]],
     image_points: dict[str, tuple[float, float]],
+    available_labels: Optional[set[str]] = None,
+    minimal_set_count: int = 4,
 ) -> list[tuple[np.ndarray, np.ndarray]]:
     # Check what image points are available
-    available_labels = set(image_points.keys())
+    available_labels = available_labels or set(image_points.keys())
     available_planes_for_calibration = get_planar_points_padel_court(
-        available_labels=available_labels
+        available_labels=available_labels,
+        minimal_set_count=minimal_set_count,
     )
     from courtvision.data import dict_to_points
 
@@ -985,6 +1008,31 @@ def denormalize_points(named_points, width, height):
     return points
 
 
+from typing import TypeVar
+
+Point2D = TypeVar("Point2D", np.array, tuple, list)
+
+
+def denormalize_as_named_points(
+    normalised_named_points: dict[str, Point2D], image_width: int, image_height: int
+) -> dict[str, Point2D]:
+    """Transforms a dict of normalized points `0 to 1` to image points using the
+    supplied image dimension.
+
+    Args:
+        normalised_named_points (dict[str, Point2D]): Dict of points normalised from `0.0` to `1.0`
+        image_width (int): Image width to expand to.
+        image_height (int): Image height to expand to.
+
+    Returns:
+        dict[str, Point2D]: Retruns a dict of similar struture but with image points.
+    """
+    return {
+        k: (v[0] * image_width, v[1] * image_height)
+        for k, v in normalised_named_points.items()
+    }
+
+
 def convert_obj_points_to_planar(object_points: np.array) -> np.array:
     """Converts object points to planar points by finding the common axis and permuting the points so that the common axis is the last axis.
     Assumes that the object points are planar.
@@ -1013,6 +1061,101 @@ def convert_obj_points_to_planar(object_points: np.array) -> np.array:
         ],
         axis=1,
     ).astype(np.float32)
+
+
+@dataclass
+class CameraInfo:
+    valid_for_clip_ids: list[str]
+    camera_matrix: np.array
+    distortion_coefficients: np.array
+    rotation_vector: np.array
+    translation_vector: np.array
+    image_width: int
+    image_height: int
+    error_in_reprojecred_planar_points: float
+    error_in_reprojecred_points: float
+
+    def save(self, file_name: str):
+        import numpy as np
+
+        np.savez(
+            file_name,
+            camera_matrix=self.camera_matrix,
+            distortion_coefficients=self.distortion_coefficients,
+            rotation_vector=self.rotation_vector,
+            translation_vector=self.translation_vector,
+            image_width=self.image_width,
+            image_height=self.image_height,
+            error_in_reprojecred_planar_points=self.error_in_reprojecred_planar_points,
+            clip_id=self.clip_id,
+        )
+
+
+def calibrate_and_evaluate(
+    clip_id,
+    *,
+    calibration_correspondences_selected,
+    pose_correspondences_selected,
+    image_width,
+    image_height,
+    all_world_points,
+    all_image_points,
+) -> CameraInfo:
+    repo_erro, camera_matrix, dist_coeffs, *_ = cv2.calibrateCamera(
+        objectPoints=[
+            convert_obj_points_to_planar(obj)
+            for obj, _ in calibration_correspondences_selected
+        ],
+        imagePoints=[img for _, img in calibration_correspondences_selected],
+        imageSize=(image_width, image_height),
+        cameraMatrix=None,
+        distCoeffs=None,
+    )
+    # print(repo_erro)
+
+    optimal_camera_matrix, roi = cv2.getOptimalNewCameraMatrix(
+        camera_matrix,
+        dist_coeffs,
+        (image_width, image_height),
+        1,
+        (image_width, image_height),
+        False,
+    )
+
+    success, rvec, tvec = cv2.solvePnP(
+        objectPoints=np.concatenate([obj for obj, _ in pose_correspondences_selected]),
+        imagePoints=np.concatenate([img for _, img in pose_correspondences_selected]),
+        cameraMatrix=optimal_camera_matrix,
+        distCoeffs=dist_coeffs,
+        # None,
+        flags=cv2.SOLVEPNP_ITERATIVE,
+        useExtrinsicGuess=False,
+    )
+
+    # print(f"{success=}")
+    reprojected_image_points, _ = cv2.projectPoints(
+        all_world_points,
+        rvec,
+        tvec,
+        optimal_camera_matrix,
+        dist_coeffs,
+    )
+    # print(f"{optimal_camera_matrix=}")
+    reprojected_image_points = reprojected_image_points.reshape(-1, 2)
+    reprojection_error = np.linalg.norm(
+        reprojected_image_points - all_image_points, axis=1
+    ).mean()
+    # print(f"{reprojection_error=}")
+    return CameraInfo(
+        camera_matrix=optimal_camera_matrix,
+        distortion_coefficients=dist_coeffs,
+        rotation_vector=rvec,
+        translation_vector=tvec,
+        image_width=image_width,
+        image_height=image_height,
+        error_in_reprojecred_planar_points=repo_erro,
+        error_in_reprojecred_points=reprojection_error,
+    )
 
 
 if __name__ == "__main__":
