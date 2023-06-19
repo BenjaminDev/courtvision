@@ -1088,9 +1088,13 @@ class CameraInfo:
     error_in_reprojecred_planar_points: float
     error_in_reprojecred_points: float
 
-    def save(self, file_name: str):
+    def save(self, file_name: Path):
         import numpy as np
 
+        # if isinstance(file_name, Path):
+        #     _file_name = file_name.parent /f"error_{self.error_in_reprojecred_points:02f}{file_name.stem}.npz"
+        # else:
+        #     raise NotImplementedError()
         np.savez(
             file_name,
             camera_matrix=self.camera_matrix,

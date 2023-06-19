@@ -20,6 +20,7 @@ pytorch-lightning = "^2.0.1.post0"
 pydantic = "^1.10.7"
 av = "^10.0.0"
 pytube = "15.0.0"
+structlog = "^23.1.0"
 
 
 [tool.poetry.group.dev.dependencies]

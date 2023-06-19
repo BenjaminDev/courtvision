@@ -1,8 +1,13 @@
 from pathlib import Path
 
+import structlog
 import torch
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+
+from courtvision.swiss import get_latest_file
+
+logger = structlog.get_logger("courtvision.models")
 
 
 def get_fasterrcnn_ball_detection_model(model_path: None | Path = None):
@@ -21,3 +26,59 @@ def get_fasterrcnn_ball_detection_model(model_path: None | Path = None):
     if model_path is not None:
         model.load_state_dict(torch.load(model_path))
     return model
+
+
+class BallDetector:
+    PIPELINE_NAME = "ball_detection"
+
+    def __init__(self, model_dir: Path, cache_dir: Path):
+        self.model_path = get_latest_file(model_dir)
+        self.model = get_fasterrcnn_ball_detection_model(model_path=self.model_path)
+        self.cache_dir = cache_dir
+        self.model.eval()
+
+    def predict(
+        self, image: torch.Tensor, frame_idx: int, clip_uid: str
+    ) -> torch.Tensor:
+        cache_path = (
+            self.cache_dir
+            / self.PIPELINE_NAME
+            / clip_uid
+            / f"detections_at_{frame_idx}.pt"
+        )
+        if not cache_path.is_dir():
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+        if cache_path.is_file():
+            return torch.load(cache_path)
+        else:
+            with torch.no_grad():
+                detections = self.model(image)
+            torch.save(detections, cache_path)
+            return detections
+
+
+class PlayerDetector:
+    PIPELINE_NAME = "player_detection"
+
+    def __init__(self, model_dir: Path, cache_dir: Path):
+        self.model_path = get_latest_file(model_dir)
+        self.cache_dir = cache_dir
+        self.model = get_fasterrcnn_ball_detection_model(model_path=self.model_path)
+        self.model.eval()
+
+    def predict(self, image: torch.Tensor, frame_idx: int) -> torch.Tensor:
+
+        cache_path = (
+            self.cache_dir / self.PIPELINE_NAME / f"detections_at_{frame_idx}.pt"
+        )
+        if cache_path.is_file():
+            return torch.load(cache_path)
+        else:
+            with torch.no_grad():
+                detections = self.model(image)
+                if len(detections[0]["boxes"]) > 0:
+                    torch.save(detections, cache_path)
+                else:
+                    breakpoint()
+                    logger.warning("No detections", frame_idx=frame_idx)
+            return detections

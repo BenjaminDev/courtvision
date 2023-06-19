@@ -5,6 +5,8 @@ import numpy as np
 from pydantic import BaseModel, Field
 from torch.utils.data import DataLoader
 
+from courtvision.models import BallDetector, PlayerDetector
+
 
 class AnnotationDataPath(BaseModel):
     video_url: Optional[Path]
@@ -100,6 +102,43 @@ class CourtAnnotatedSample(BaseModel):
 
 class PadelDataset(BaseModel):
     samples: list[CourtAnnotatedSample]
+
+
+from dataclasses import dataclass, field
+
+from courtvision.geometry import CameraInfo, PadelCourt
+
+
+@dataclass
+class CourtVisionArtifacts:
+    local_cache_path: Path
+    dataset: PadelDataset
+    ball_detector: BallDetector
+    player_detector: PlayerDetector
+
+    court_layout: PadelCourt
+    # court_detection_model: Path = None
+
+    # camera_info: CameraInfo
+    camera_info_path: Path
+    _camera_info: CameraInfo = field(init=False, default=None)
+
+    @property
+    def camera_info(self):
+        if self._camera_info is None and self.camera_info_path.exists():
+
+            self._camera_info = CameraInfo.load(
+                self.local_cache_path / "camera_info.npz"
+            )
+
+        return self._camera_info
+
+    @camera_info.setter
+    def camera_info(self, value):
+        self._camera_info = value
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 from pathlib import Path
@@ -372,7 +411,7 @@ def frames_from_clip_segments(
     for sample in dataset.samples:
         for annotation in sample.annotations:
             for result in annotation.result:
-                if isinstance(result, ClipSegmentResult):
+                if isinstance(result.value, LabelValue):
                     start_time = result.value.start
                     end_time = result.value.end
                     reader = torchvision.io.VideoReader(
@@ -412,11 +451,11 @@ def get_normalized_calibration_image_points_and_clip_ids(
     for sample in dataset.samples:
         if sample.data.video_url:
             clip_source.add(sample.data.video_url)
-        elif sample.data.video_local_path:
+        if sample.data.video_local_path:
             clip_source.add(sample.data.video_local_path)
-        elif sample.data.image:
+        if sample.data.image:
             clip_source.add(sample.data.image)
-        else:
+        if not clip_source:
             raise ValueError("No clip source found")
         for annotation in sample.annotations:
 
