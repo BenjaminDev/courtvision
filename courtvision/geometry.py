@@ -675,7 +675,20 @@ def get_planar_point_correspondences(
     available_labels: Optional[set[str]] = None,
     minimal_set_count: int = 4,
 ) -> list[tuple[np.ndarray, np.ndarray]]:
-    # Check what image points are available
+    """Given a set of named points in the world and image, return a list of point correspondences
+    where all points are coplanar.
+    If a specified set `available_labels` is given, only return point correspondences where all
+    points are in that set.
+    Args:
+        world_points (dict[str, tuple[float, float]]): Dict of named points in the world coordinate frame.
+        image_points (dict[str, tuple[float, float]]): Dict of named points in the image coordinate frame.
+        available_labels (Optional[set[str]], optional): Set of labels to use if None all labels are used. Defaults to None.
+        minimal_set_count (int, optional): Sets of corresponding points . Defaults to 4.
+
+    Returns:
+        list[tuple[np.ndarray, np.ndarray]]: Returns a list of point correspondences where all points are coplanar.
+        list[tuple[Nx3, Nx2]]
+    """
     available_labels = available_labels or set(image_points.keys())
     available_planes_for_calibration = get_planar_points_padel_court(
         available_labels=available_labels,
@@ -1087,7 +1100,27 @@ class CameraInfo:
             image_width=self.image_width,
             image_height=self.image_height,
             error_in_reprojecred_planar_points=self.error_in_reprojecred_planar_points,
+            error_in_reprojecred_points=self.error_in_reprojecred_points,
             valid_for_clip_ids=self.valid_for_clip_ids,
+        )
+
+    @staticmethod
+    def load(file_name: str):
+        import numpy as np
+
+        data = np.load(file_name, allow_pickle=True)
+        return CameraInfo(
+            camera_matrix=data["camera_matrix"],
+            distortion_coefficients=data["distortion_coefficients"],
+            rotation_vector=data["rotation_vector"],
+            translation_vector=data["translation_vector"],
+            image_width=data["image_width"],
+            image_height=data["image_height"],
+            error_in_reprojecred_planar_points=data[
+                "error_in_reprojecred_planar_points"
+            ],
+            error_in_reprojecred_points=data["error_in_reprojecred_points"],
+            valid_for_clip_ids=data["valid_for_clip_ids"].tolist(),
         )
 
 

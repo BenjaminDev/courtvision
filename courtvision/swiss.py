@@ -39,6 +39,25 @@ def get_latest_file(dir: Path, file_suffix: str = ".pt") -> Path:
     return most_recent_file
 
 
+import warnings
+from functools import wraps
+
+
+def mark_as_deprecated(to_be_removed_in_version: tuple[int, int, int], details: str):
+    #
+    def inner(func):
+        def wrapper(*args, **kwargs):
+            warnings.warn(
+                f"{func.__name__} is deprecated and will be removed in Version {to_be_removed_in_version}. Details {details}",
+                stacklevel=2,
+            )
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return inner
+
+
 # class BYTETracker:
 
 #     def __init__(self, args, frame_rate=30):
