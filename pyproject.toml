@@ -45,3 +45,6 @@ textual = "^0.27.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "-p no:warnings"

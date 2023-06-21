@@ -15,6 +15,10 @@ from courtvision.geometry import PadelCourt
 
 
 class StateIdx:
+    """
+    Named indices for the state tensor.
+    """
+
     x: int = 0
     y: int = 1
     z: int = 2
@@ -27,7 +31,9 @@ class StateIdx:
     weight: int = 9
 
 
-class Tracker:
+class ParticleFilter:
+    """_summary_"""
+
     def __init__(
         self,
         num_particles: int = 1000,

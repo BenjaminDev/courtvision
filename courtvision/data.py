@@ -106,7 +106,292 @@ class PadelDataset(BaseModel):
 
 from dataclasses import dataclass, field
 
-from courtvision.geometry import CameraInfo, PadelCourt
+# from courtvision.geometry import CameraInfo, PadelCourt
+
+
+@dataclass
+class CameraInfo:
+    valid_for_clip_ids: set[str]
+    camera_matrix: np.array
+    distortion_coefficients: np.array
+    rotation_vector: np.array
+    translation_vector: np.array
+    image_width: int
+    image_height: int
+    error_in_reprojecred_planar_points: float
+    error_in_reprojecred_points: float
+
+    def save(self, file_name: Path):
+
+        np.savez(
+            file_name,
+            camera_matrix=self.camera_matrix,
+            distortion_coefficients=self.distortion_coefficients,
+            rotation_vector=self.rotation_vector,
+            translation_vector=self.translation_vector,
+            image_width=self.image_width,
+            image_height=self.image_height,
+            error_in_reprojecred_planar_points=self.error_in_reprojecred_planar_points,
+            error_in_reprojecred_points=self.error_in_reprojecred_points,
+            valid_for_clip_ids=self.valid_for_clip_ids,
+        )
+
+    @staticmethod
+    def load(file_name: str):
+        import numpy as np
+
+        data = np.load(file_name, allow_pickle=True)
+        return CameraInfo(
+            camera_matrix=data["camera_matrix"],
+            distortion_coefficients=data["distortion_coefficients"],
+            rotation_vector=data["rotation_vector"],
+            translation_vector=data["translation_vector"],
+            image_width=data["image_width"],
+            image_height=data["image_height"],
+            error_in_reprojecred_planar_points=data[
+                "error_in_reprojecred_planar_points"
+            ],
+            error_in_reprojecred_points=data["error_in_reprojecred_points"],
+            valid_for_clip_ids=data["valid_for_clip_ids"].tolist(),
+        )
+
+
+@dataclass
+class PadelCourt:
+    # The scale of the court is in meters
+    # Setting this to 100.0 means that the court is 1_000cm x 2_000cm
+    court_scale: float = 100.0
+
+    # REF: https://www.lta.org.uk/4ad2a4/siteassets/play/padel/file/lta-padel-court-guidance.pdf
+    width: float = 10.0 * court_scale
+    length: float = 20.0 * court_scale
+    backwall_height: float = 3.0 * court_scale
+    backall_fence_height: float = 4.0 * court_scale
+    serve_line_from_back_line: float = 3.0 * court_scale
+    line_width: float = 0.05 * court_scale
+    net_height: float = 0.78 * court_scale  # 0.78m
+
+    @classmethod
+    @property
+    def center_line(cls) -> np.array:
+        return np.array(
+            [
+                (cls.width / 2, cls.length - cls.serve_line_from_back_line),
+                (cls.width / 2, cls.serve_line_from_back_line),
+            ],
+            dtype=np.int32,
+        ).reshape(-1, 1, 2)
+
+    @classmethod
+    @property
+    def net_line(cls) -> np.array:
+        return np.array(
+            [(0, cls.length / 2), (cls.width, cls.length / 2)], dtype=np.int64
+        ).reshape(-1, 1, 2)
+
+    @classmethod
+    @property
+    def near_serve_line(cls):
+        return np.array(
+            [
+                (0, cls.length - cls.serve_line_from_back_line),
+                (cls.width, cls.length - cls.serve_line_from_back_line),
+            ],
+            np.int32,
+        ).reshape(-1, 1, 2)
+
+    @classmethod
+    @property
+    def far_serve_line(cls):
+        return np.array(
+            [
+                (0, cls.serve_line_from_back_line),
+                (cls.width, cls.serve_line_from_back_line),
+            ],
+            dtype=np.int32,
+        ).reshape(-1, 1, 2)
+
+    @classmethod
+    @property
+    def front_left(cls):
+        return (0.0, 0.0)
+
+    @classmethod
+    @property
+    def front_right(cls):
+        return (cls.width, 0)
+
+    @classmethod
+    @property
+    def top_front_left_vertical_plane(cls):
+        # x, z
+        return (0.0, cls.backwall_height)
+
+    @classmethod
+    @property
+    def top_front_right_vertical_plane(cls):
+        # x, z
+        return (cls.width, cls.backwall_height)
+
+    @classmethod
+    @property
+    def back_left(cls):
+        return (0.0, cls.length)
+
+    @classmethod
+    @property
+    def back_right(cls):
+        return (cls.width, cls.length)
+
+    @classmethod
+    @property
+    def left_near_serve_line(cls):
+        return (0.0, cls.serve_line_from_back_line)
+
+    @classmethod
+    @property
+    def right_near_serve_line(cls):
+        return (cls.width, cls.serve_line_from_back_line)
+
+    @classmethod
+    @property
+    def left_far_serve_line(cls):
+        return (0.0, cls.length - cls.serve_line_from_back_line)
+
+    @classmethod
+    @property
+    def right_far_serve_line(cls):
+        return (cls.width, cls.length - cls.serve_line_from_back_line)
+
+    @classmethod
+    @property
+    def m_top_front_left(cls):
+        # TODO: add thes
+        raise NotImplementedError()
+
+    @classmethod
+    @property
+    def n_top_front_right(cls):
+        raise NotImplementedError()
+
+    @classmethod
+    @property
+    def o_top_back_left(cls):
+        raise NotImplementedError()
+
+    @classmethod
+    @property
+    def p_top_back_right(cls):
+        raise NotImplementedError()
+
+    @classmethod
+    @property
+    def q_top_net_line_left(cls):
+        raise NotImplementedError()
+
+    @classmethod
+    @property
+    def r_top_net_line_right(cls):
+        raise NotImplementedError()
+
+    # Normalised:
+    @classmethod
+    @property
+    def center_line_n(cls) -> np.array:
+        return np.array(
+            [
+                ((cls.width / 2) / cls.width, cls.length / cls.length),
+                ((cls.width / 2) / cls.width, 0),
+            ],
+            dtype=np.int32,
+        ).reshape(-1, 1, 2)
+
+    @classmethod
+    @property
+    def net_line_n(cls) -> np.array:
+        return np.array(
+            [
+                (0, (cls.length / 2) / cls.length),
+                (cls.width / cls.width, (cls.length / 2) / cls.length),
+            ],
+            dtype=np.int64,
+        ).reshape(-1, 1, 2)
+
+    @classmethod
+    @property
+    def front_left_n(cls):
+        return (cls.front_left[0] / cls.width, cls.front_left[1] / cls.length)
+
+    @classmethod
+    @property
+    def front_right_n(cls):
+        return (cls.front_right[0] / cls.width, cls.front_right[1] / cls.length)
+
+    @classmethod
+    @property
+    def top_front_left_vertical_plane_n(cls):
+        # x, z
+        return (0.0, 0.0)
+
+    @classmethod
+    @property
+    def top_front_right_vertical_plane_n(cls):
+        # x, z
+        return (cls.width / cls.width, 0.0)
+
+    @classmethod
+    @property
+    def front_left_vertical_plane_n(cls):
+        # x, z
+        return (0.0, cls.backwall_height / cls.backwall_height)
+
+    @classmethod
+    @property
+    def front_right_vertical_plane_n(cls):
+        # x, z
+        return (cls.width / cls.width, cls.backwall_height / cls.backwall_height)
+
+    @classmethod
+    @property
+    def back_left_n(cls):
+        return (cls.back_left[0] / cls.width, cls.back_left[1] / cls.length)
+
+    @classmethod
+    @property
+    def back_right_n(cls):
+        return (cls.back_right[0] / cls.width, cls.back_right[1] / cls.length)
+
+    @classmethod
+    @property
+    def left_near_serve_line_n(cls):
+        return (
+            cls.left_near_serve_line[0] / cls.width,
+            cls.left_near_serve_line[1] / cls.length,
+        )
+
+    @classmethod
+    @property
+    def right_near_serve_line_n(cls):
+        return (
+            cls.right_near_serve_line[0] / cls.width,
+            cls.right_near_serve_line[1] / cls.length,
+        )
+
+    @classmethod
+    @property
+    def left_far_serve_line_n(cls):
+        return (
+            cls.left_far_serve_line[0] / cls.width,
+            cls.left_far_serve_line[1] / cls.length,
+        )
+
+    @classmethod
+    @property
+    def right_far_serve_line_n(cls):
+        return (
+            cls.right_far_serve_line[0] / cls.width,
+            cls.right_far_serve_line[1] / cls.length,
+        )
 
 
 @dataclass
@@ -149,7 +434,6 @@ import torch
 from torchvision.datasets import VisionDataset
 
 from courtvision.data import Annotation, CourtAnnotatedSample, KeypointValue, RectValue
-from courtvision.vis import draw_rect, load_timg
 
 
 class CourtVisionDataset(VisionDataset):
@@ -169,6 +453,9 @@ class CourtVisionDataset(VisionDataset):
         return len(self.dataset.samples)
 
     def __getitem__(self, idx) -> tuple[CourtAnnotatedSample, torch.Tensor]:
+        from courtvision.vis import load_timg
+
+        # TODO: Data module should have IO functions injected into it
         sample = self.dataset.samples[idx]
         image = load_timg(CourtVisionDataset.find_image_path(self.root, sample=sample))
         return (
@@ -203,6 +490,8 @@ class CourtVisionDataset(VisionDataset):
     @staticmethod
     def show_sample(annotation: list[Annotation], image: torch.Tensor):
         """Plots an image and its annotation"""
+        # TODO: Data module should have vis functions injected into it
+        from courtvision.vis import draw_rect
 
         def draw_annotaion(annotation: Annotation, image: torch.Tensor):
             bboxes = [
