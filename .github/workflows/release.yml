@@ -18,8 +18,6 @@ jobs:
     # retrieve your distributions here
     - name: Set up Python
       uses: actions/setup-python@v3
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v3
     - name: Check out repository code
       uses: actions/checkout@v3
       # with:
