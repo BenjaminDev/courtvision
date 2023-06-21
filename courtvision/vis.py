@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 from pathlib import Path
 from typing import Union
 
@@ -12,6 +13,18 @@ import rerun as rr
 import torch
 from mpl_toolkits.mplot3d import Axes3D
 from scipy import ndimage
+
+colours_per_player_idx = defaultdict(lambda: (255, 255, 255))
+colours_per_player_idx.update(
+    {
+        0: (0, 255, 0),
+        1: (0, 0, 255),
+        2: (255, 0, 0),
+        3: (255, 255, 0),
+        4: (255, 0, 255),
+        5: (0, 255, 255),
+    }
+)
 
 
 def log_court_layout(
@@ -48,7 +61,8 @@ def log_court_layout(
         ),
         from_parent=True,
     )
-    rr.log_point("world", np.array([0, 0, 0]))
+    rr.log_point("world/front_left", np.array([0, 0, 0]))
+    rr.log_point("world/front_right", np.array([100, 0, 0]))
     rr.log_mesh_file(
         "world",
         mesh_format=rr.MeshFormat("GLB"),
