@@ -1,11 +1,17 @@
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Union
+from typing import Callable, Optional, Union
 
+import cv2
+import matplotlib.pyplot as plt
 import numpy as np
+import torch
 from pydantic import BaseModel, Field
 from torch.utils.data import DataLoader
+from torchvision.datasets import VisionDataset
 
 from courtvision.models import BallDetector, PlayerDetector
+from courtvision.trackers import ParticleFilter
 
 
 class AnnotationDataPath(BaseModel):
@@ -104,8 +110,6 @@ class PadelDataset(BaseModel):
     samples: list[CourtAnnotatedSample]
 
 
-from dataclasses import dataclass, field
-
 # from courtvision.geometry import CameraInfo, PadelCourt
 
 
@@ -120,6 +124,17 @@ class CameraInfo:
     image_height: int
     error_in_reprojecred_planar_points: float
     error_in_reprojecred_points: float
+
+    def world_space_to_camera_space(self) -> torch.Tensor:
+        rotation_matrix, _ = cv2.Rodrigues(self.rotation_vector)
+        return torch.tensor(
+            np.vstack(
+                [
+                    np.hstack((rotation_matrix, self.translation_vector)),
+                    np.array([0, 0, 0, 1]),
+                ]
+            )
+        )
 
     def save(self, file_name: Path):
 
@@ -138,7 +153,6 @@ class CameraInfo:
 
     @staticmethod
     def load(file_name: str):
-        import numpy as np
 
         data = np.load(file_name, allow_pickle=True)
         return CameraInfo(
@@ -399,6 +413,7 @@ class CourtVisionArtifacts:
     local_cache_path: Path
     dataset: PadelDataset
     ball_detector: BallDetector
+    ball_tracker: ParticleFilter
     player_detector: PlayerDetector
 
     court_layout: PadelCourt
@@ -424,16 +439,6 @@ class CourtVisionArtifacts:
 
     class Config:
         arbitrary_types_allowed = True
-
-
-from pathlib import Path
-from typing import Callable, Optional
-
-import matplotlib.pyplot as plt
-import torch
-from torchvision.datasets import VisionDataset
-
-from courtvision.data import Annotation, CourtAnnotatedSample, KeypointValue, RectValue
 
 
 class CourtVisionDataset(VisionDataset):

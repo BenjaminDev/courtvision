@@ -48,6 +48,7 @@ from courtvision.geometry import (
 )
 from courtvision.models import BallDetector, PlayerDetector
 from courtvision.swiss import get_latest_file, mark_as_deprecated
+from courtvision.trackers import ParticleFilter
 from courtvision.vis import (
     colours_per_player_idx,
     log_ball_detections,
@@ -69,82 +70,6 @@ def pipeline(
 ):
     # Calibrate camera
     artifacts = calibrate_camera(artifacts, logger=logger)
-
-    # Detect ball and players in the image plane
-    # for artifacts.dataset
-
-
-# def calibrate_camera(
-#     artifacts: CourtVisionArtifacts, verbose: Verbosity = Verbosity.PROGRESS
-# ) -> CourtVisionArtifacts:
-#     if artifacts.camera_info:
-#         logger.info(
-#             "Camera already calibrated - using supplied camera_info",
-#             camera_info=artifacts.camera_info,
-#         )
-#         return artifacts
-#     if artifacts.camera_info_path.is_file():
-#         artifacts.camera_info = CameraInfo.load(artifacts.camera_info_path)
-#         logger.info(
-#             "Camera already calibrated - using cached version",
-#             camera_info=artifacts.camera_info,
-#         )
-#         return artifacts
-
-#     frame, uid = next(
-#         frames_from_clip_segments(
-#             artifacts.dataset,
-#             local_path=artifacts.local_cache_path,
-#             stream_type=StreamType.VIDEO,
-#         )
-#     )
-
-#     image_width, image_height = frame["data"].shape[2], frame["data"].shape[1]
-#     logger.info(
-#         "Calibrating camera using:", image_width=image_width, image_height=image_height
-#     )
-#     if image_height < 100 or image_width < 100:
-#         logger.warn("Image dimensions look wrong! Check it out.")
-
-#     (
-#         normalised_named_points,
-#         valid_clip_ids,
-#     ) = get_normalized_calibration_image_points_and_clip_ids(artifacts.dataset)
-#     calibration_image_points = denormalize_as_named_points(
-#         normalised_named_points=normalised_named_points,
-#         image_width=image_width,
-#         image_height=image_height,
-#     )
-
-#     calibration_correspondences = get_planar_point_correspondences(
-#         image_points=calibration_image_points,
-#         world_points=corners_world_3d.copy(),
-#         minimal_set_count=4,
-#     )
-
-#     pose_correspondences = get_planar_point_correspondences(
-#         image_points=calibration_image_points,
-#         world_points=corners_world_3d.copy(),
-#         minimal_set_count=6,
-#     )
-
-#     all_world_points, all_labels = dict_to_points(corners_world_3d.copy())
-#     all_image_points, _ = dict_to_points(calibration_image_points.copy())
-#     logger.info("Calibrating camera...")
-
-#     camera_info = find_optimal_calibration_and_pose(
-#         valid_clip_ids=valid_clip_ids,
-#         calibration_correspondences=calibration_correspondences,
-#         pose_correspondences=pose_correspondences,
-#         image_height=image_height,
-#         image_width=image_width,
-#         all_image_points=all_image_points,
-#         all_world_points=all_world_points,
-#     )
-#     logger.info("Calibrated camera", camera_info=camera_info)
-#     artifacts.camera_info = camera_info
-#     artifacts.camera_info.save(artifacts.camera_info_path)
-#     return artifacts
 
 
 if __name__ == "__main__":
@@ -173,6 +98,12 @@ if __name__ == "__main__":
             ),
             cache_dir=ANNOTATION_DATA_PATH / "cache",
         ),
+        ball_tracker=ParticleFilter(
+            num_particles=10_000,
+            court_size=torch.tensor(
+                [PadelCourt.width, PadelCourt.length, PadelCourt.backall_fence_height]
+            ),
+        ),
         player_detector=PlayerDetector(
             model_dir=Path(
                 "/Users/benjamindecharmoy/projects/courtvision/models/player_detection"
@@ -186,7 +117,14 @@ if __name__ == "__main__":
 
     # Calibrate camera from annotations in the dataset
     artifacts = calibrate_camera(artifacts, logger=logger)
-
+    artifacts.ball_tracker.reset(
+        num_particles=10_000,
+        court_size=torch.tensor(
+            [PadelCourt.width, PadelCourt.length, PadelCourt.backall_fence_height]
+        ),
+        world_to_cam=artifacts.camera_info.world_space_to_camera_space(),
+        cam_to_image=torch.tensor(artifacts.camera_info.camera_matrix),
+    )
     rr.init(
         "courtvision",
         spawn=False,
@@ -204,6 +142,8 @@ if __name__ == "__main__":
 
         rr.set_time_sequence(uid, i)
         if uid != current_uid:
+            if current_uid is not None:
+                break
             log_court_layout(
                 camera_matrix=artifacts.camera_info.camera_matrix,
                 image_width=artifacts.camera_info.image_width,
@@ -227,6 +167,31 @@ if __name__ == "__main__":
             detections=ball_detections,
             clip_uid=uid,
         )
+        # TODO: use variable dt for prediction. Use frame["pts"]
+        artifacts.ball_tracker.predict(dt=1 / 30.0)
+        for ball_detection in ball_detections:
+            for (bx1, by1, bx2, by2), ball_score in zip(
+                ball_detection["boxes"][:4], ball_detection["scores"]
+            ):
+                obs_state = torch.tensor(
+                    [
+                        (bx1 + bx2) / 2.0,
+                        (by1 + by2) / 2.0,
+                    ]
+                ).to(dtype=torch.float32)
+
+                artifacts.ball_tracker.update(obs_state, ball_score)
+
+                rr.log_points(
+                    "world/ball_state",
+                    positions=artifacts.ball_tracker.xyz,
+                )
+                rr.log_point(
+                    "world/tracker_mean",
+                    artifacts.ball_tracker.xyz_mean,
+                    color=(255, 222, 0),
+                    radius=2.0,
+                )
 
         # Detect and log player detections
         player_detections = artifacts.player_detector.predict(
