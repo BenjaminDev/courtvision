@@ -1,5 +1,0 @@
-[core]
-    remote = padel-dataset
-['remote "padel-dataset"']
-    url = s3://courtvision-padel-dataset/raw
-    profile = default

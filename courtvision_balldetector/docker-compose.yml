@@ -11,7 +11,9 @@ services:
       - 6379
   server:
     container_name: server
-    build: .
+    build: 
+      context: .
+      network: host
     environment:
       - MODEL_DIR=/data/models
       - RQ_QUEUE_NAME=default
@@ -32,4 +34,4 @@ services:
     ports:
       - 8080:8080
     volumes:
-      - "./data/labelstudiodata:/label-studio/data"
+      - "/mnt/vol_b/labelstudiodata/:/label-studio/data"
