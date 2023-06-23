@@ -17,7 +17,10 @@ from courtvision.trackers import ParticleFilter
 class AnnotationDataPath(BaseModel):
     video_url: Optional[Path]
     video_local_path: Optional[Path]
+    image_local_path: Optional[Path]
     image: Optional[Path] = Field(None, alias="img")
+    # TODO: #1 use aliases to have a single source of truth file locations
+    #       both locally and on reomote - eg: s3
 
     class Config:
         allow_population_by_field_name = True
@@ -108,6 +111,7 @@ class CourtAnnotatedSample(BaseModel):
 
 class PadelDataset(BaseModel):
     samples: list[CourtAnnotatedSample]
+    local_data_dir: Path | None = None
 
 
 # from courtvision.geometry import CameraInfo, PadelCourt
@@ -174,7 +178,7 @@ class CameraInfo:
 class PadelCourt:
     # The scale of the court is in meters
     # Setting this to 100.0 means that the court is 1_000cm x 2_000cm
-    court_scale: float = 100.0
+    court_scale: float = 10.0
 
     # REF: https://www.lta.org.uk/4ad2a4/siteassets/play/padel/file/lta-padel-court-guidance.pdf
     width: float = 10.0 * court_scale
@@ -441,6 +445,142 @@ class CourtVisionArtifacts:
         arbitrary_types_allowed = True
 
 
+class CourtVisionBallDataset(VisionDataset):
+    def __init__(
+        self,
+        dataset: PadelDataset,
+        root: str,
+        download: bool = True,
+        show: Callable | None = None,
+        load_from_disk: Callable[[Path], torch.Tensor] | None = None,
+        transforms: Callable | None = None,
+        transform: Callable | None = None,
+        target_transform: Callable | None = None,
+    ):
+        super().__init__(root, transforms, transform, target_transform)
+        # self.root = root  # TODO: See what base class does and if we can use it
+        self.dataset = dataset
+        from rich.progress import track
+
+        if download:
+            for sample in track(dataset.samples, description=f"Downloading data"):
+                sample.data.image_local_path = download_data_item(
+                    s3_uri=sample.data.image,
+                    local_path=self.dataset.local_data_dir
+                    / sample.data.image.parent.name
+                    / sample.data.image.name,
+                )
+
+    def __len__(self):
+        return len(self.dataset.samples)
+
+    def __getitem__(self, idx) -> tuple[CourtAnnotatedSample, torch.Tensor]:
+        from courtvision.vis import load_timg
+
+        # TODO: Data module should have IO functions injected into it
+        sample = self.dataset.samples[idx]
+        image = load_timg(sample.data.image_local_path)
+        return (
+            image,
+            sample,
+        )
+
+    @staticmethod
+    def collate_fn(batch):
+        """Collate function for the dataloader"""
+        images, samples = zip(*batch)
+        targets = [
+            {
+                "boxes": annotations_to_bbox(sample.annotations),
+                "labels": torch.ones(1, dtype=torch.int64),
+            }
+            for sample in samples
+        ]
+
+        return [o.squeeze(0) for o in images], targets
+
+    @staticmethod
+    def find_image_path(root: Path | str, sample: CourtAnnotatedSample):
+        """Finds the image path from a sample"""
+        #         root = Path(root)
+        #         dir_name, _, frame_idx = sample.data.image.stem.partition("_frame")
+        #         dir_name = dir_name.split("-", 1)[-1]
+        #         filename = root / dir_name / f"{dir_name}_frame{frame_idx}.png"
+        # # /Users/benjamindecharmoy/projects/courtvision/labelstudiodata/media/upload/1/b6f5d028-Highlights-TOLITO-AGUIRRE---TITO-ALLEMANDI-vs-CHIOSTRI---MELGRATTI--Sa_Lwr6ooR.png
+        #         if not filename.exists():
+        #             print(f"{filename=} \n{root=}!")
+        #             print(f"{sample.data.image=}")
+        #             raise Exception("Could not find image")
+        #         return filename
+        server_file_path = Path(*sample.data.image.parts[2:])  # remove /data/
+        filename = Path(f"{root}/{server_file_path}")
+        # print(f"{filename=}")
+        return filename
+
+    @staticmethod
+    def show_sample(annotation: list[Annotation], image: torch.Tensor):
+        """Plots an image and its annotation"""
+        # TODO: Data module should have vis functions injected into it
+        from courtvision.vis import draw_rect
+
+        def draw_annotaion(annotation: Annotation, image: torch.Tensor):
+            bboxes = [
+                r.value for r in annotation.result if isinstance(r.value, RectValue)
+            ]
+
+            original_sizes = [
+                (r.original_width, r.original_height)
+                for r in annotation.result
+                if isinstance(r.value, RectValue)
+            ]
+            if bboxes:
+                rects = torch.stack(
+                    [
+                        torch.tensor(
+                            [
+                                (bbox.x / 100.0) * w_h[0],
+                                (bbox.y / 100.0) * w_h[1],
+                                (bbox.x + bbox.width) / 100.0 * w_h[0],
+                                (bbox.y + bbox.height) / 100.0 * w_h[1],
+                            ]
+                        ).unsqueeze(0)
+                        for bbox, w_h in zip(bboxes, original_sizes)
+                    ]
+                ).permute(1, 0, 2)
+                print(rects.shape)
+                draw_rect(image, bboxes=rects)
+
+            keypoints = [
+                r.value for r in annotation.result if isinstance(r.value, KeypointValue)
+            ]
+            original_sizes = [
+                (r.original_width, r.original_height)
+                for r in annotation.result
+                if isinstance(r.value, KeypointValue)
+            ]
+            if keypoints:
+                point_width = 1.0
+                rects = torch.stack(
+                    [
+                        torch.tensor(
+                            [
+                                (point.x / 100.0) * w_h[0],
+                                (point.y / 100.0) * w_h[1],
+                                (point.x + point_width) / 100.0 * w_h[0],
+                                (point.y + point_width) / 100.0 * w_h[1],
+                            ]
+                        ).unsqueeze(0)
+                        for point, w_h in zip(keypoints, original_sizes)
+                    ]
+                ).permute(1, 0, 2)
+
+                draw_rect(image, bboxes=rects)
+
+        for annot in annotation:
+            draw_annotaion(annot, image)
+        plt.imshow(image.squeeze(0).permute(1, 2, 0))
+
+
 class CourtVisionDataset(VisionDataset):
     def __init__(
         self,
@@ -472,7 +612,15 @@ class CourtVisionDataset(VisionDataset):
     def collate_fn(batch):
         """Collate function for the dataloader"""
         samples, images = zip(*batch)
-        return samples, torch.stack(images)
+        targets = [
+            {
+                "boxes": annotations_to_bbox(sample.annotations),
+                "labels": torch.ones(1, dtype=torch.int64),
+            }
+            for sample in samples
+        ]
+
+        return targets, [o.squeeze(0) for o in images]
 
     @staticmethod
     def find_image_path(root: Path | str, sample: CourtAnnotatedSample):
@@ -487,6 +635,7 @@ class CourtVisionDataset(VisionDataset):
         #             print(f"{sample.data.image=}")
         #             raise Exception("Could not find image")
         #         return filename
+        breakpoint()
         server_file_path = Path(*sample.data.image.parts[2:])  # remove /data/
         filename = Path(f"{root}/{server_file_path}")
         # print(f"{filename=}")

@@ -68,6 +68,7 @@ def log_court_layout(
         from_parent=True,
     )
     rr.log_point("world/front_left", np.array([0, 0, 0]))
+    # TODO: this should be refectored to use the court_size
     rr.log_point("world/front_right", np.array([100, 0, 0]))
     rr.log_mesh_file(
         "world",

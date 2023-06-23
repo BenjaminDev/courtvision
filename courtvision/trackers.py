@@ -9,9 +9,6 @@ from kornia.geometry import (
     convert_points_from_homogeneous,
     convert_points_to_homogeneous,
 )
-from torch import tensor
-
-# from courtvision.geometry import PadelCourt
 
 
 class StateIdx:
@@ -38,7 +35,7 @@ class ParticleFilter:
         self,
         *,
         num_particles: int,
-        court_size: torch.tensor,
+        court_size: torch.Tensor,
         world_to_cam: torch.Tensor | None = None,
         cam_to_image: torch.Tensor | None = None,
         # torch.tensor(
@@ -70,6 +67,7 @@ class ParticleFilter:
             names=["num_particles", "state"],
         )
         # Place a prior on the initial state X, Y, Z to be on the court
+
         self.states[:, StateIdx.x] = (
             self.states[:, StateIdx.x] * court_size[StateIdx.x]
             + court_size[StateIdx.x] / 2
@@ -181,7 +179,7 @@ class ParticleFilter:
             #     (self.num_particles, 3)
             # )*5.0
         )
-        breakpoint()
+
         # Ensure state is on the court using clamp
         self.states[:, StateIdx.x] = torch.clamp(
             self.states[:, StateIdx.x], 0.0, self.court_size[StateIdx.x]

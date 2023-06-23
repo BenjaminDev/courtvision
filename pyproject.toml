@@ -7,7 +7,7 @@ license = "MIT"
 readme = "README.md"
 
 [tool.poetry.scripts]
-courtvision = 'courtvision.console:review'
+cv-grab-frames = 'courtvision.console:grab_frames_from_clips'
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -21,6 +21,8 @@ pydantic = "^1.10.7"
 av = "^10.0.0"
 pytube = "15.0.0"
 structlog = "^23.1.0"
+wandb = "^0.15.4"
+torchvision = "^0.15.2"
 
 
 [tool.poetry.group.dev.dependencies]
