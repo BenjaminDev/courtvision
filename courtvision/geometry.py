@@ -1,263 +1,245 @@
 from dataclasses import dataclass
+from itertools import chain, combinations, product
+from pathlib import Path
+from typing import Literal
 
+import cv2
 import numpy as np
 
-court_scale = 10
+from courtvision.data import CameraInfo, PadelCourt
 
+# @dataclass
+# class PadelCourt:
+#     # REF: https://www.lta.org.uk/4ad2a4/siteassets/play/padel/file/lta-padel-court-guidance.pdf
+#     width: float = 10.0 * court_scale
+#     length: float = 20.0 * court_scale
+#     backwall_height: float = 3.0 * court_scale
+#     backall_fence_height: float = 4.0 * court_scale
+#     serve_line_from_back_line: float = 3.0 * court_scale
+#     line_width: float = 0.05 * court_scale
+#     net_height: float = 0.78 * court_scale  # 0.78m
 
-@dataclass
-class PadelCourt:
-    # REF: https://www.lta.org.uk/4ad2a4/siteassets/play/padel/file/lta-padel-court-guidance.pdf
-    width: float = 10.0 * court_scale
-    length: float = 20.0 * court_scale
-    backwall_height: float = 3.0 * court_scale
-    backall_fence_height: float = 4.0 * court_scale
-    serve_line_from_back_line: float = 2.0 * court_scale
-    line_width: float = 0.05 * court_scale
-    net_height: float = 0.78 * court_scale  # 0.78m
+#     @classmethod
+#     @property
+#     def center_line(cls) -> np.array:
+#         return np.array(
+#             [
+#                 (cls.width / 2, cls.length - cls.serve_line_from_back_line),
+#                 (cls.width / 2, cls.serve_line_from_back_line),
+#             ],
+#             dtype=np.int32,
+#         ).reshape(-1, 1, 2)
 
-    @classmethod
-    @property
-    def center_line(cls) -> np.array:
-        return np.array(
-            [
-                (cls.width / 2, cls.length - cls.serve_line_from_back_line),
-                (cls.width / 2, cls.serve_line_from_back_line),
-            ],
-            dtype=np.int32,
-        ).reshape(-1, 1, 2)
+#     @classmethod
+#     @property
+#     def net_line(cls) -> np.array:
+#         return np.array(
+#             [(0, cls.length / 2), (cls.width, cls.length / 2)], dtype=np.int64
+#         ).reshape(-1, 1, 2)
 
-    @classmethod
-    @property
-    def net_line(cls) -> np.array:
-        return np.array(
-            [(0, cls.length / 2), (cls.width, cls.length / 2)], dtype=np.int64
-        ).reshape(-1, 1, 2)
+#     @classmethod
+#     @property
+#     def near_serve_line(cls):
+#         return np.array(
+#             [
+#                 (0, cls.length - cls.serve_line_from_back_line),
+#                 (cls.width, cls.length - cls.serve_line_from_back_line),
+#             ],
+#             np.int32,
+#         ).reshape(-1, 1, 2)
 
-    @classmethod
-    @property
-    def near_serve_line(cls):
-        return np.array(
-            [
-                (0, cls.length - cls.serve_line_from_back_line),
-                (cls.width, cls.length - cls.serve_line_from_back_line),
-            ],
-            np.int32,
-        ).reshape(-1, 1, 2)
+#     @classmethod
+#     @property
+#     def far_serve_line(cls):
+#         return np.array(
+#             [
+#                 (0, cls.serve_line_from_back_line),
+#                 (cls.width, cls.serve_line_from_back_line),
+#             ],
+#             dtype=np.int32,
+#         ).reshape(-1, 1, 2)
 
-    @classmethod
-    @property
-    def far_serve_line(cls):
-        return np.array(
-            [
-                (0, cls.serve_line_from_back_line),
-                (cls.width, cls.serve_line_from_back_line),
-            ],
-            dtype=np.int32,
-        ).reshape(-1, 1, 2)
+#     @classmethod
+#     @property
+#     def front_left(cls):
+#         return (0.0, 0.0)
 
-    @classmethod
-    @property
-    def front_left(cls):
-        return (0.0, 0.0)
+#     @classmethod
+#     @property
+#     def front_right(cls):
+#         return (cls.width, 0)
 
-    @classmethod
-    @property
-    def front_right(cls):
-        return (cls.width, 0)
+#     @classmethod
+#     @property
+#     def top_front_left_vertical_plane(cls):
+#         # x, z
+#         return (0.0, cls.backwall_height)
 
-    @classmethod
-    @property
-    def top_front_left_vertical_plane(cls):
-        # x, z
-        return (0.0, cls.backwall_height)
+#     @classmethod
+#     @property
+#     def top_front_right_vertical_plane(cls):
+#         # x, z
+#         return (cls.width, cls.backwall_height)
 
-    @classmethod
-    @property
-    def top_front_right_vertical_plane(cls):
-        # x, z
-        return (cls.width, cls.backwall_height)
+#     @classmethod
+#     @property
+#     def back_left(cls):
+#         return (0.0, cls.length)
 
-    @classmethod
-    @property
-    def back_left(cls):
-        return (0.0, cls.length)
+#     @classmethod
+#     @property
+#     def back_right(cls):
+#         return (cls.width, cls.length)
 
-    @classmethod
-    @property
-    def back_right(cls):
-        return (cls.width, cls.length)
+#     @classmethod
+#     @property
+#     def left_near_serve_line(cls):
+#         return (0.0, cls.serve_line_from_back_line)
 
-    @classmethod
-    @property
-    def left_near_serve_line(cls):
-        return (0.0, cls.serve_line_from_back_line)
+#     @classmethod
+#     @property
+#     def right_near_serve_line(cls):
+#         return (cls.width, cls.serve_line_from_back_line)
 
-    @classmethod
-    @property
-    def right_near_serve_line(cls):
-        return (cls.width, cls.serve_line_from_back_line)
+#     @classmethod
+#     @property
+#     def left_far_serve_line(cls):
+#         return (0.0, cls.length - cls.serve_line_from_back_line)
 
-    @classmethod
-    @property
-    def left_far_serve_line(cls):
-        return (0.0, cls.length - cls.serve_line_from_back_line)
+#     @classmethod
+#     @property
+#     def right_far_serve_line(cls):
+#         return (cls.width, cls.length - cls.serve_line_from_back_line)
 
-    @classmethod
-    @property
-    def right_far_serve_line(cls):
-        return (cls.width, cls.length - cls.serve_line_from_back_line)
+#     @classmethod
+#     @property
+#     def m_top_front_left(cls):
+#         # TODO: add thes
+#         raise NotImplementedError()
 
-    @classmethod
-    @property
-    def m_top_front_left(cls):
-        # TODO: add thes
-        raise NotImplementedError()
+#     @classmethod
+#     @property
+#     def n_top_front_right(cls):
+#         raise NotImplementedError()
 
-    @classmethod
-    @property
-    def n_top_front_right(cls):
-        raise NotImplementedError()
+#     @classmethod
+#     @property
+#     def o_top_back_left(cls):
+#         raise NotImplementedError()
 
-    @classmethod
-    @property
-    def o_top_back_left(cls):
-        raise NotImplementedError()
+#     @classmethod
+#     @property
+#     def p_top_back_right(cls):
+#         raise NotImplementedError()
 
-    @classmethod
-    @property
-    def p_top_back_right(cls):
-        raise NotImplementedError()
+#     @classmethod
+#     @property
+#     def q_top_net_line_left(cls):
+#         raise NotImplementedError()
 
-    @classmethod
-    @property
-    def q_top_net_line_left(cls):
-        raise NotImplementedError()
+#     @classmethod
+#     @property
+#     def r_top_net_line_right(cls):
+#         raise NotImplementedError()
 
-    @classmethod
-    @property
-    def r_top_net_line_right(cls):
-        raise NotImplementedError()
+#     # Normalised:
+#     @classmethod
+#     @property
+#     def center_line_n(cls) -> np.array:
+#         return np.array(
+#             [
+#                 ((cls.width / 2) / cls.width, cls.length / cls.length),
+#                 ((cls.width / 2) / cls.width, 0),
+#             ],
+#             dtype=np.int32,
+#         ).reshape(-1, 1, 2)
 
-    # Normalised:
-    @classmethod
-    @property
-    def center_line_n(cls) -> np.array:
-        return np.array(
-            [
-                ((cls.width / 2) / cls.width, cls.length / cls.length),
-                ((cls.width / 2) / cls.width, 0),
-            ],
-            dtype=np.int32,
-        ).reshape(-1, 1, 2)
+#     @classmethod
+#     @property
+#     def net_line_n(cls) -> np.array:
+#         return np.array(
+#             [
+#                 (0, (cls.length / 2) / cls.length),
+#                 (cls.width / cls.width, (cls.length / 2) / cls.length),
+#             ],
+#             dtype=np.int64,
+#         ).reshape(-1, 1, 2)
 
-    @classmethod
-    @property
-    def net_line_n(cls) -> np.array:
-        return np.array(
-            [
-                (0, (cls.length / 2) / cls.length),
-                (cls.width / cls.width, (cls.length / 2) / cls.length),
-            ],
-            dtype=np.int64,
-        ).reshape(-1, 1, 2)
+#     @classmethod
+#     @property
+#     def front_left_n(cls):
+#         return (cls.front_left[0] / cls.width, cls.front_left[1] / cls.length)
 
-    @classmethod
-    @property
-    def front_left_n(cls):
-        return (cls.front_left[0] / cls.width, cls.front_left[1] / cls.length)
+#     @classmethod
+#     @property
+#     def front_right_n(cls):
+#         return (cls.front_right[0] / cls.width, cls.front_right[1] / cls.length)
 
-    @classmethod
-    @property
-    def front_right_n(cls):
-        return (cls.front_right[0] / cls.width, cls.front_right[1] / cls.length)
+#     @classmethod
+#     @property
+#     def top_front_left_vertical_plane_n(cls):
+#         # x, z
+#         return (0.0, 0.0)
 
-    @classmethod
-    @property
-    def top_front_left_vertical_plane_n(cls):
-        # x, z
-        return (0.0, 0.0)
+#     @classmethod
+#     @property
+#     def top_front_right_vertical_plane_n(cls):
+#         # x, z
+#         return (cls.width / cls.width, 0.0)
 
-    @classmethod
-    @property
-    def top_front_right_vertical_plane_n(cls):
-        # x, z
-        return (cls.width / cls.width, 0.0)
+#     @classmethod
+#     @property
+#     def front_left_vertical_plane_n(cls):
+#         # x, z
+#         return (0.0, cls.backwall_height / cls.backwall_height)
 
-    @classmethod
-    @property
-    def front_left_vertical_plane_n(cls):
-        # x, z
-        return (0.0, cls.backwall_height / cls.backwall_height)
+#     @classmethod
+#     @property
+#     def front_right_vertical_plane_n(cls):
+#         # x, z
+#         return (cls.width / cls.width, cls.backwall_height / cls.backwall_height)
 
-    @classmethod
-    @property
-    def front_right_vertical_plane_n(cls):
-        # x, z
-        return (cls.width / cls.width, cls.backwall_height / cls.backwall_height)
+#     @classmethod
+#     @property
+#     def back_left_n(cls):
+#         return (cls.back_left[0] / cls.width, cls.back_left[1] / cls.length)
 
-    @classmethod
-    @property
-    def back_left_n(cls):
-        return (cls.back_left[0] / cls.width, cls.back_left[1] / cls.length)
+#     @classmethod
+#     @property
+#     def back_right_n(cls):
+#         return (cls.back_right[0] / cls.width, cls.back_right[1] / cls.length)
 
-    @classmethod
-    @property
-    def back_right_n(cls):
-        return (cls.back_right[0] / cls.width, cls.back_right[1] / cls.length)
+#     @classmethod
+#     @property
+#     def left_near_serve_line_n(cls):
+#         return (
+#             cls.left_near_serve_line[0] / cls.width,
+#             cls.left_near_serve_line[1] / cls.length,
+#         )
 
-    @classmethod
-    @property
-    def left_near_serve_line_n(cls):
-        return (
-            cls.left_near_serve_line[0] / cls.width,
-            cls.left_near_serve_line[1] / cls.length,
-        )
+#     @classmethod
+#     @property
+#     def right_near_serve_line_n(cls):
+#         return (
+#             cls.right_near_serve_line[0] / cls.width,
+#             cls.right_near_serve_line[1] / cls.length,
+#         )
 
-    @classmethod
-    @property
-    def right_near_serve_line_n(cls):
-        return (
-            cls.right_near_serve_line[0] / cls.width,
-            cls.right_near_serve_line[1] / cls.length,
-        )
+#     @classmethod
+#     @property
+#     def left_far_serve_line_n(cls):
+#         return (
+#             cls.left_far_serve_line[0] / cls.width,
+#             cls.left_far_serve_line[1] / cls.length,
+#         )
 
-    @classmethod
-    @property
-    def left_far_serve_line_n(cls):
-        return (
-            cls.left_far_serve_line[0] / cls.width,
-            cls.left_far_serve_line[1] / cls.length,
-        )
-
-    @classmethod
-    @property
-    def right_far_serve_line_n(cls):
-        return (
-            cls.right_far_serve_line[0] / cls.width,
-            cls.right_far_serve_line[1] / cls.length,
-        )
-
-    # a_front_left
-    # b_front_right
-    # c_back_left
-    # d_back_right
-    # e_left_near_serve_line
-    # f_right_near_serve_line
-    # g_left_far_serve_line
-    # h_right_far_serve_line
-    # i_center_line_far
-    # j_net_line_left
-    # k_center_line_right
-    # l_net_line_right
-
-    # m_top_front_left
-    # n_top_front_right
-    # o_top_back_left
-    # p_top_back_right
-    # q_top_net_line_left
-    # r_top_net_line_right
-
+#     @classmethod
+#     @property
+#     def right_far_serve_line_n(cls):
+#         return (
+#             cls.right_far_serve_line[0] / cls.width,
+#             cls.right_far_serve_line[1] / cls.length,
+#         )
 
 corners_world = {
     "a_front_left": PadelCourt.front_left,
@@ -401,6 +383,18 @@ from kornia.geometry.homography import (
 
 
 def project_points_to_base_plane(points: torch.tensor, H: torch.tensor) -> torch.tensor:
+    """Given homogeneous points or 2D points and a homography, project the points to the base plane
+
+    Args:
+        points (torch.tensor): Homogeneous points or 2D points
+        H (torch.tensor): Homography 3x3 matrix
+
+    Raises:
+        ValueError: If `points` is not of length 2 or 3
+
+    Returns:
+        torch.tensor: Projected points in either homogeneous or 2D corrdinates. Same as `points`
+    """
     if len(points.shape) == 2:
         return convert_points_from_homogeneous(
             convert_points_to_homogeneous(points) @ H.T
@@ -408,7 +402,7 @@ def project_points_to_base_plane(points: torch.tensor, H: torch.tensor) -> torch
     elif len(points.shape) == 3:
         return points @ H.T
     else:
-        raise RuntimeError(f"{points.shape=} must be of length 2 or 3.")
+        raise ValueError(f"{points.shape=} must be of length 2 or 3.")
 
 
 def convert_corners_to_vec(corners: dict) -> dict:
@@ -499,10 +493,6 @@ def convert_corners_to_lines(corners: dict):
     return {"xs": xs, "ys": ys, "zs": zs}
 
 
-from pathlib import Path
-from typing import Literal
-
-
 def get_corners_verital_plane_on_image(
     file_name: str, plane: Literal["front", "back"]
 ) -> dict:
@@ -549,6 +539,163 @@ def get_corners_verital_plane_on_image(
     else:
         raise ValueError(f"{plane=} must be one of 'front', 'back' or 'both'")
     return points
+
+
+def get_planar_points_padel_court(
+    available_labels: set[str], minimal_set_count: int
+) -> list[set]:
+    # floor plane points
+    available_planes_for_calibration = []
+    floor_plane_points = {
+        "a_front_left",
+        "b_front_right",
+        "c_back_left",
+        "d_back_right",
+        "e_left_near_serve_line",
+        "f_right_near_serve_line",
+        "g_left_far_serve_line",
+        "h_right_far_serve_line",
+        "i_center_line_far",
+        "j_net_line_left",
+        "k_center_line_near",
+        "l_net_line_right",
+        "t_center_center",
+    }
+    left_vertical_plane_points = {
+        "a_front_left",
+        "c_back_left",
+        "e_left_near_serve_line",
+        "g_left_far_serve_line",
+        "j_net_line_left",
+        "m_top_front_left",
+        "o_top_back_left",
+        "q_top_net_line_left",
+        "u_topfence_front_left",
+        "w_topfence_back_left",
+    }
+
+    right_vertical_plane_points = {
+        "b_front_right",
+        "d_back_right",
+        "f_right_near_serve_line",
+        "h_right_far_serve_line",
+        "n_top_front_right",
+        "p_top_back_right",
+        "r_top_net_line_right",
+        "v_topfence_front_right",
+        "x_topfence_back_right",
+        "z_top_center_right",
+        "l_net_line_right",
+    }
+    front_vertical_plane_points = {
+        "a_front_left",
+        "b_front_right",
+        "m_top_front_left",
+        "n_top_front_right",
+        "u_topfence_front_left",
+        "v_topfence_front_right",
+    }
+    back_vertical_plane_points = {
+        "c_back_left",
+        "d_back_right",
+        "o_top_back_left",
+        "p_top_back_right",
+        "w_topfence_back_left",
+        "x_topfence_back_right",
+    }
+
+    center_vertical_plane_points = {
+        "j_net_line_left",
+        "q_top_net_line_left",
+        "r_top_net_line_right",
+        "l_net_line_right",
+        # "t_center_center",
+    }
+    top_horizontal_plane_points = {
+        "m_top_front_left",
+        "n_top_front_right",
+        "o_top_back_left",
+        "p_top_back_right",
+        "y_top_center_left",
+        "z_top_center_right",
+    }
+    topfence_horizontal_plane_points = {
+        "u_topfence_front_left",
+        "v_topfence_front_right",
+        "w_topfence_back_left",
+        "x_topfence_back_right",
+    }
+    all_planar_sets = [
+        floor_plane_points,
+        left_vertical_plane_points,
+        right_vertical_plane_points,
+        front_vertical_plane_points,
+        back_vertical_plane_points,
+        center_vertical_plane_points,
+        top_horizontal_plane_points,
+        topfence_horizontal_plane_points,
+    ]
+    # from itertools import combinations
+    # from itertools import chain
+    # selected_available_labels = [set(o) for  o in chain.from_iterable(
+    #     set(combinations(available_labels, o))
+    #     for o in range(
+    #             minimal_set_count,
+    #             minimal_set_count +1,
+    #             # len(available_labels) + 1,
+    #     )
+    # )]
+
+    # for selected_labels in selected_available_labels:
+    for planar_set in all_planar_sets:
+        if len(available_labels.intersection(planar_set)) >= minimal_set_count:
+            available_planes_for_calibration.append(
+                available_labels.intersection(planar_set)
+            )
+
+    return available_planes_for_calibration
+
+
+from typing import Optional
+
+
+def get_planar_point_correspondences(
+    world_points: dict[str, tuple[float, float]],
+    image_points: dict[str, tuple[float, float]],
+    available_labels: Optional[set[str]] = None,
+    minimal_set_count: int = 4,
+) -> list[tuple[np.ndarray, np.ndarray]]:
+    """Given a set of named points in the world and image, return a list of point correspondences
+    where all points are coplanar.
+    If a specified set `available_labels` is given, only return point correspondences where all
+    points are in that set.
+    Args:
+        world_points (dict[str, tuple[float, float]]): Dict of named points in the world coordinate frame.
+        image_points (dict[str, tuple[float, float]]): Dict of named points in the image coordinate frame.
+        available_labels (Optional[set[str]], optional): Set of labels to use if None all labels are used. Defaults to None.
+        minimal_set_count (int, optional): Sets of corresponding points . Defaults to 4.
+
+    Returns:
+        list[tuple[np.ndarray, np.ndarray]]: Returns a list of point correspondences where all points are coplanar.
+        list[tuple[Nx3, Nx2]]
+    """
+    available_labels = available_labels or set(image_points.keys())
+    available_planes_for_calibration = get_planar_points_padel_court(
+        available_labels=available_labels,
+        minimal_set_count=minimal_set_count,
+    )
+    from courtvision.data import dict_to_points
+
+    planar_point_correspondences = []
+    for plane in available_planes_for_calibration:
+        world_points_on_plane_dict = {k: world_points[k] for k in plane}
+        image_points_on_plane_dict = {k: image_points[k] for k in plane}
+        world_points_on_plane, _ = dict_to_points(world_points_on_plane_dict)
+        image_points_on_plane, _ = dict_to_points(image_points_on_plane_dict)
+        planar_point_correspondences.append(
+            (world_points_on_plane, image_points_on_plane)
+        )
+    return planar_point_correspondences
 
 
 def get_corners_image(file_name: str) -> dict:
@@ -629,12 +776,9 @@ def get_corners_image(file_name: str) -> dict:
     return annotated_images[frame_name]
 
 
-import cv2
-
-from courtvision.vis import load_timg
-
-
 def compute_homography(annotated_frame, src_corners_n, dst_corners_n):
+    from courtvision.vis import load_timg
+
     src_img_t = load_timg(annotated_frame)
     src_img = src_img_t.squeeze(0).numpy().transpose(1, 2, 0)
     src_img_height, src_img_width, _ = src_img.shape
@@ -664,6 +808,9 @@ def compute_homography(annotated_frame, src_corners_n, dst_corners_n):
 
 
 def compute_homography_to_vertical_plane(annotated_frame, src_corners_n, dst_corners_n):
+    # TODO: geometry modulke should not be doing IO
+    from courtvision.vis import load_timg
+
     src_img_t = load_timg(annotated_frame)
     src_img = src_img_t.squeeze(0).numpy().transpose(1, 2, 0)
     src_img_height, src_img_width, _ = src_img.shape
@@ -864,6 +1011,31 @@ def denormalize_points(named_points, width, height):
     return points
 
 
+from typing import TypeVar
+
+Point2D = TypeVar("Point2D", np.array, tuple, list)
+
+
+def denormalize_as_named_points(
+    normalised_named_points: dict[str, Point2D], image_width: int, image_height: int
+) -> dict[str, Point2D]:
+    """Transforms a dict of normalized points `0 to 1` to image points using the
+    supplied image dimension.
+
+    Args:
+        normalised_named_points (dict[str, Point2D]): Dict of points normalised from `0.0` to `1.0`
+        image_width (int): Image width to expand to.
+        image_height (int): Image height to expand to.
+
+    Returns:
+        dict[str, Point2D]: Retruns a dict of similar struture but with image points.
+    """
+    return {
+        k: (v[0] * image_width, v[1] * image_height)
+        for k, v in normalised_named_points.items()
+    }
+
+
 def convert_obj_points_to_planar(object_points: np.array) -> np.array:
     """Converts object points to planar points by finding the common axis and permuting the points so that the common axis is the last axis.
     Assumes that the object points are planar.
@@ -894,7 +1066,297 @@ def convert_obj_points_to_planar(object_points: np.array) -> np.array:
     ).astype(np.float32)
 
 
-if __name__ == "__main__":
-    import rerun as rr
+def calibrate_and_evaluate(
+    valid_clip_ids: set[str],
+    *,
+    calibration_correspondences_selected,
+    pose_correspondences_selected,
+    image_width,
+    image_height,
+    all_world_points,
+    all_image_points,
+) -> CameraInfo:
+    repo_erro, camera_matrix, dist_coeffs, *_ = cv2.calibrateCamera(
+        objectPoints=[
+            convert_obj_points_to_planar(obj)
+            for obj, _ in calibration_correspondences_selected
+        ],
+        imagePoints=[img for _, img in calibration_correspondences_selected],
+        imageSize=(image_width, image_height),
+        cameraMatrix=None,
+        distCoeffs=None,
+    )
+    # print(repo_erro)
 
-    rr.init("geometry", spawn=True)
+    optimal_camera_matrix, roi = cv2.getOptimalNewCameraMatrix(
+        camera_matrix,
+        dist_coeffs,
+        (image_width, image_height),
+        1,
+        (image_width, image_height),
+        False,
+    )
+
+    success, rvec, tvec = cv2.solvePnP(
+        objectPoints=np.concatenate([obj for obj, _ in pose_correspondences_selected]),
+        imagePoints=np.concatenate([img for _, img in pose_correspondences_selected]),
+        cameraMatrix=optimal_camera_matrix,
+        distCoeffs=dist_coeffs,
+        # None,
+        flags=cv2.SOLVEPNP_ITERATIVE,
+        useExtrinsicGuess=False,
+    )
+
+    # print(f"{success=}")
+    reprojected_image_points, _ = cv2.projectPoints(
+        all_world_points,
+        rvec,
+        tvec,
+        optimal_camera_matrix,
+        dist_coeffs,
+    )
+    # print(f"{optimal_camera_matrix=}")
+    reprojected_image_points = reprojected_image_points.reshape(-1, 2)
+    reprojection_error = np.linalg.norm(
+        reprojected_image_points - all_image_points, axis=1
+    ).mean()
+    # print(f"{reprojection_error=}")
+    return CameraInfo(
+        camera_matrix=optimal_camera_matrix,
+        distortion_coefficients=dist_coeffs,
+        rotation_vector=rvec,
+        translation_vector=tvec,
+        image_width=image_width,
+        image_height=image_height,
+        error_in_reprojecred_planar_points=repo_erro,
+        error_in_reprojecred_points=reprojection_error,
+        valid_for_clip_ids=valid_clip_ids,
+    )
+
+
+from typing import Any, Optional
+
+from courtvision.data import (
+    CourtVisionArtifacts,
+    StreamType,
+    dict_to_points,
+    frames_from_clip_segments,
+    get_normalized_calibration_image_points_and_clip_ids,
+)
+
+
+def calibrate_camera(
+    artifacts: CourtVisionArtifacts, logger: Optional[Any] = None
+) -> CourtVisionArtifacts:
+    if artifacts.camera_info:
+        logger.info(
+            "Camera already calibrated - using supplied camera_info",
+            camera_info=artifacts.camera_info,
+        )
+        return artifacts
+    if artifacts.camera_info_path.is_file():
+        artifacts.camera_info = CameraInfo.load(artifacts.camera_info_path)
+        logger.info(
+            "Camera already calibrated - using cached version",
+            camera_info=artifacts.camera_info,
+        )
+        return artifacts
+
+    frame, uid = next(
+        frames_from_clip_segments(
+            artifacts.dataset,
+            local_path=artifacts.local_cache_path,
+            stream_type=StreamType.VIDEO,
+        )
+    )
+
+    image_width, image_height = frame["data"].shape[2], frame["data"].shape[1]
+    logger.info(
+        "Calibrating camera using:", image_width=image_width, image_height=image_height
+    )
+    if image_height < 100 or image_width < 100:
+        logger.warn("Image dimensions look wrong! Check it out.")
+
+    (
+        normalised_named_points,
+        valid_clip_ids,
+    ) = get_normalized_calibration_image_points_and_clip_ids(artifacts.dataset)
+    calibration_image_points = denormalize_as_named_points(
+        normalised_named_points=normalised_named_points,
+        image_width=image_width,
+        image_height=image_height,
+    )
+
+    calibration_correspondences = get_planar_point_correspondences(
+        image_points=calibration_image_points,
+        world_points=corners_world_3d.copy(),
+        minimal_set_count=4,
+    )
+
+    pose_correspondences = get_planar_point_correspondences(
+        image_points=calibration_image_points,
+        world_points=corners_world_3d.copy(),
+        minimal_set_count=6,
+    )
+
+    all_world_points, all_labels = dict_to_points(corners_world_3d.copy())
+    all_image_points, _ = dict_to_points(calibration_image_points.copy())
+    logger.info("Calibrating camera...")
+
+    camera_info = find_optimal_calibration_and_pose(
+        valid_clip_ids=valid_clip_ids,
+        calibration_correspondences=calibration_correspondences,
+        pose_correspondences=pose_correspondences,
+        image_height=image_height,
+        image_width=image_width,
+        all_image_points=all_image_points,
+        all_world_points=all_world_points,
+    )
+    logger.info("Calibrated camera", camera_info=camera_info)
+    artifacts.camera_info = camera_info
+    artifacts.camera_info.save(artifacts.camera_info_path)
+    return artifacts
+
+
+def find_optimal_calibration_and_pose(
+    valid_clip_ids: set[str],
+    calibration_correspondences: list[tuple[np.array, np.array]],
+    pose_correspondences: list[tuple[np.array, np.array]],
+    image_width: int,
+    image_height: int,
+    all_image_points: np.array,
+    all_world_points: np.array,
+) -> CameraInfo:
+    """
+    Givern a set of calibration and pose correspondences, find the optimal calibration and pose.
+    This is done by building up combinations of these sets and evaluating the reprojection error.
+    The reprojection error is the mean of the euclidean distance between the reprojected points and the actual points.
+    The evvaluation is on all `all_image_points` and `all_world_points`.
+
+    Args:
+        valid_clip_ids (set[str]): _description_
+        calibration_correspondences (list[tuple[np.array, np.array]]): _description_
+        pose_correspondences (list[tuple[np.array, np.array]]): _description_
+        image_width (int): Image width
+        image_height (int): Image height
+        all_image_points (np.array): 3D points that we want to reproject.
+        all_world_points (np.array): 2D points that are where we expect the 3D points to be reprojected to.
+
+    Raises:
+        RuntimeError: _description_
+
+    Returns:
+        CameraInfo: _description_
+    """
+    CALIBRATION_MIN_PAIRS = 4
+    CALIBRATION_MAX_PAIRS = min(8, len(calibration_correspondences))
+
+    POSE_MIN_PAIRS = 4
+    POSE_MAX_PAIRS = min(8, len(pose_correspondences))
+
+    calibration_indexes = [o for o in range(len(calibration_correspondences))]
+    calibration_selected_pairs: list[tuple[int, ...]] = list(
+        chain.from_iterable(
+            (combinations(calibration_indexes, num_pairs_to_use))
+            for num_pairs_to_use in range(CALIBRATION_MIN_PAIRS, CALIBRATION_MAX_PAIRS)
+        )
+    )
+
+    pose_indexes = [o for o in range(len(pose_correspondences))]
+    pose_selected_pairs: list[tuple[int, ...]] = list(
+        chain.from_iterable(
+            (combinations(pose_indexes, num_pairs_to_use))
+            for num_pairs_to_use in range(POSE_MIN_PAIRS, POSE_MAX_PAIRS)
+        )
+    )
+
+    best_error_in_reprojecred_points = 10000.0
+    best_camera_info = None
+
+    for calibration_pair, pose_pair in product(
+        calibration_selected_pairs, pose_selected_pairs
+    ):
+        calibration_correspondences_selection = [
+            calibration_correspondences[o] for o in calibration_pair
+        ]
+        pose_correspondences_selection = [pose_correspondences[o] for o in pose_pair]
+
+        camera_info = calibrate_and_evaluate(
+            valid_clip_ids=valid_clip_ids,
+            calibration_correspondences_selected=calibration_correspondences_selection,
+            pose_correspondences_selected=pose_correspondences_selection,
+            image_width=image_width,
+            image_height=image_height,
+            all_image_points=all_image_points,
+            all_world_points=all_world_points,
+        )
+        if camera_info.error_in_reprojecred_points < best_error_in_reprojecred_points:
+            best_camera_info = camera_info
+    if best_camera_info is None:
+        raise RuntimeError("Failed to find optimal calibration and pose")
+    return best_camera_info
+
+
+def camera_space_to_world_space(
+    camera_point: np.array,
+    translation_vector: np.array,
+    rotation_vector: np.array,
+) -> np.array:
+    """Transform a point from camera space to world space.
+
+    Args:
+        camera_point (np.array): 3D point in camera space with shape (3,)
+        translation_vector (np.array): Translation vector of the camera with shape (3,)
+        rotation_vector (np.array): Rotation vector of the camera with shape (3,)
+
+    Raises:
+        ValueError: If the camera point is not a 3D point with shape (3,)
+
+    Returns:
+        np.array: 3D point in world space with shape (3,)
+    """
+    if not camera_point.shape[0] == 3:
+        raise ValueError("Camera point must be a 3D point with shape (3,)")
+    R, _ = cv2.Rodrigues(rotation_vector)
+    world_point = (R.T @ (camera_point - translation_vector)).T
+    return world_point
+
+
+def compute_ray_intersecting_plane(
+    point_a_on_ray: np.array,
+    point_b_on_ray: np.array,
+    plane_normal: np.array = np.array([[0, 0, 1]]),
+    plane_point: np.array = np.array([0, 0, 0]),
+):
+    """Given two points on a ray, compute the point of intersection with a plane.
+    The plane is defined as a normal vector and a point on the plane.
+
+    Args:
+        point_a_on_ray (np.array): 3D point on the ray with shape (3, 1)
+        point_b_on_ray (np.array): 3D point on the ray with shape (3, 1)
+        plane_normal (np.array, optional): Unit vector pointing out the plane. Defaults to np.array([[0, 0, 1]]). Shape (1, 3)
+        plane_point (np.array, optional): Point on the plane. Defaults to np.array([0, 0, 0]). Shape (3,)
+
+    Returns:
+        np.array: Returns the 3D point of intersection with shape (3,)
+    """
+    # Vector along the ray direction A -> B
+    if not (point_a_on_ray.shape == point_b_on_ray.shape == (3, 1)):
+        raise ValueError(
+            f"Point A and B must be 3D points with shape (3, 1). {point_a_on_ray.shape=} {point_b_on_ray.shape=}"
+        )
+    if not plane_normal.shape == (1, 3) and np.linalg.norm(plane_normal) == 1:
+        raise ValueError(
+            "Plane normal must be a unit vector with shape (1, 3) and norm 1"
+        )
+    if not plane_point.shape == (3,):
+        raise ValueError("Plane point must be a 3D point with shape (3,)")
+
+    ray_direction = point_b_on_ray - point_a_on_ray
+    # Finding parameter t
+    t = -(np.dot(plane_normal, point_a_on_ray) + plane_point) / np.dot(
+        plane_normal, ray_direction
+    )
+    # Finding point of intersection
+    intersection = (point_a_on_ray.T + t * ray_direction.T).squeeze(0)
+    return intersection

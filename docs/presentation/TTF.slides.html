@@ -15320,7 +15320,7 @@ div.jp-OutputPrompt {
     <img  src="the_puzzle.png">
 </p> -->
 <!-- ![](the_puzzle_small.png) -->
-<img src="the_puzzle.png" alt="Drawing" style=" width: 500px "/>
+<img src="the_puzzle.png" alt="Drawing" style=" width: 200% "/>
 
 </div>
 </div>
@@ -15366,11 +15366,11 @@ div.jp-OutputPrompt {
 </li>
 <li>Data undestanding process<ul>
 <li>Detections are made in the &quot;Image plane&quot;</li>
-<li>Camera intrisics are computed using knowledge about the scene</li>
-<li>Camera extrinsics are computed uisng knowledge about the scene</li>
-<li>A one-way mapping from &quot;World coordinate frame&quot; to &quot;image plane&quot;</li>
+<li>Camera <strong>intrisics</strong> are computed using knowledge about the scene</li>
+<li>Camera <strong>extrinsics</strong> are computed uisng knowledge about the scene</li>
+<li>A <strong>one-way</strong> mapping from &quot;World coordinate frame&quot; to &quot;image plane&quot;</li>
 <li>A homogrphy (transform - plane to plane) between image and world plane</li>
-<li><strong>BUT</strong> we only have image plane detections how can we extablish world coordinates of players and ball?</li>
+<li><strong>BUT</strong> we only have image plane detections how can we establish world coordinates of players and ball?</li>
 <li>Visualize the output in a way that is useful to the Players.<ul>
 <li>Seeing Spaces is a great talk on this - bret victor</li>
 </ul>
@@ -15453,9 +15453,14 @@ div.jp-OutputPrompt {
 <span class="kn">from</span> <span class="nn">courtvision.models</span> <span class="kn">import</span> <span class="n">get_fasterrcnn_ball_detection_model</span>
 <span class="kn">from</span> <span class="nn">courtvision.vis</span> <span class="kn">import</span> <span class="n">load_timg</span><span class="p">,</span> <span class="n">draw_rect</span>
 <span class="kn">import</span> <span class="nn">torch</span>
-<span class="n">ball_detector</span> <span class="o">=</span> <span class="n">get_fasterrcnn_ball_detection_model</span><span class="p">(</span><span class="s2">&quot;../../models/ball_detector/fasterrcnn_resnet50_fpn_project-1-at-2023-05-05-03-25-2cd00928.pt&quot;</span><span class="p">)</span>
+
+<span class="n">ball_detector</span> <span class="o">=</span> <span class="n">get_fasterrcnn_ball_detection_model</span><span class="p">(</span>
+    <span class="s2">&quot;../../models/ball_detector/fasterrcnn_resnet50_fpn_project-1-at-2023-05-05-03-25-2cd00928.pt&quot;</span>
+<span class="p">)</span>
 <span class="n">ball_detector</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-<span class="n">preds</span> <span class="o">=</span> <span class="n">ball_detector</span><span class="p">(</span><span class="n">load_timg</span><span class="p">(</span><span class="s2">&quot;../../data/frames/curated_001/curated_001_frame_0021.png&quot;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">preds</span> <span class="o">=</span> <span class="n">ball_detector</span><span class="p">(</span>
+    <span class="n">load_timg</span><span class="p">(</span><span class="s2">&quot;../../data/frames/curated_001/curated_001_frame_0021.png&quot;</span><span class="p">)</span>
+<span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">preds</span><span class="p">[</span><span class="s2">&quot;boxes&quot;</span><span class="p">][:</span><span class="mi">2</span><span class="p">],</span> <span class="n">preds</span><span class="p">[</span><span class="s2">&quot;labels&quot;</span><span class="p">][:</span><span class="mi">2</span><span class="p">],</span> <span class="n">preds</span><span class="p">[</span><span class="s2">&quot;scores&quot;</span><span class="p">][:</span><span class="mi">2</span><span class="p">])</span>
 <span class="n">preds</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
 </pre></div>
@@ -15805,9 +15810,31 @@ Wall time: 1.93 s
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h1 id="Following-the-path">Following the path<a class="anchor-link" href="#Following-the-path">&#182;</a></h1><ul>
+<h3 id="Following-the-path">Following the path<a class="anchor-link" href="#Following-the-path">&#182;</a></h3><ul>
+<li>The detour!</li>
 <li>Combine tracker and geometry<ul>
-<li>Rerun visual</li>
+<li>Rerun visual (demo)</li>
+</ul>
+</li>
+</ul>
+<img src = "pose_box.png" style = "height: 100%">
+
+</div>
+</div>
+</div>
+</div></section></section><section ><section >
+<div  class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<h1 id="Where-are-we?">Where are we?<a class="anchor-link" href="#Where-are-we?">&#182;</a></h1><ul>
+<li>CourtVision goals<ul>
+<li>A dataset curated from live streamed events  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 90%</li>
+<li>A computer vision package and technical write up ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░ 75%</li>
+<li>Evaluation of the efficacy of a single camera system ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 80%</li>
+<li>Visualizations to evaluate the usefulness of CourtVision ▓▓▓▓▓▓░░░░░░░░░░░░░░ 30%</li>
 </ul>
 </li>
 </ul>
@@ -15822,11 +15849,9 @@ Wall time: 1.93 s
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h1 id="Where-are-we?">Where are we?<a class="anchor-link" href="#Where-are-we?">&#182;</a></h1><ul>
-<li>Demo of running a clip</li>
-</ul>
 <h1 id="Where-to-next?">Where to next?<a class="anchor-link" href="#Where-to-next?">&#182;</a></h1><ul>
-<li>Generate more informative visualizations</li>
+<li>Improve the Tracker and one last loop of the Path</li>
+<li>Generate more player centric informative visualizations</li>
 <li>Run on a mobile device</li>
 <li>Relax the constraint of a stationary camera</li>
 </ul>
@@ -15841,18 +15866,18 @@ Wall time: 1.93 s
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h1 id="Question-/-Ideas">Question / Ideas<a class="anchor-link" href="#Question-/-Ideas">&#182;</a></h1>
+<h1 id="Questions-/-Ideas">Questions / Ideas<a class="anchor-link" href="#Questions-/-Ideas">&#182;</a></h1>
 </div>
 </div>
 </div>
-</div>
+</div></section></section><section ><section >
 <div  class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-
+<h1 id="See-you-on-court">See you on court<a class="anchor-link" href="#See-you-on-court">&#182;</a></h1>
 </div>
 </div>
 </div>

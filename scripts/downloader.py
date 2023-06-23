@@ -2,7 +2,8 @@ import re
 import string
 from pathlib import Path
 
-from pytube import YouTube
+# from pytube import YouTube
+from yt_dlp import YoutubeDL
 
 
 def monkey_patch():
@@ -85,15 +86,21 @@ def normalize_clip_title(title: str):
 
 #
 # link = "https://www.youtube.com/watch?v=nBq3h6YPVuU"
-link = "https://www.youtube.com/watch?v=JLsMDz6Bcc8"
+# link = "https://www.youtube.com/watch?v=JLsMDz6Bcc8"
 
 # Creative Commons
 # link="https://www.youtube.com/watch?v=RJ3KZCS7oAk"
+link = "https://www.youtube.com/watch?v=IefR37b6qaE"
 
 # Clips
 # link = "https://www.youtube.com/shorts/S5igtIDi0v4"
 
-yt = YouTube(link)
-clip = yt.streams.get_highest_resolution()
-print(normalize_clip_title(clip.title))
-clip.download(output_path=data_dir / "raw", filename=normalize_clip_title(clip.title))
+# Tennis
+# link = "https://www.youtube.com/watch?v=2JkVp28oSbk"
+URLS = [link]
+# yt = YouTube(link)
+# clip = yt.streams.get_highest_resolution()
+# print(normalize_clip_title(clip.title))
+# clip.download(output_path=data_dir / "raw", filename=normalize_clip_title(clip.title))
+with YoutubeDL() as ydl:
+    ydl.download(URLS)

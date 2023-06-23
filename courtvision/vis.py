@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 from pathlib import Path
 from typing import Union
 
@@ -6,12 +7,30 @@ import cv2
 import kornia as K
 import matplotlib.pyplot as plt
 import numpy as np
-
-
-# import rerun_sdk
+import rerun as rr
 import torch
+import ultralytics
+from kornia.geometry import unproject_points
 from mpl_toolkits.mplot3d import Axes3D
 from scipy import ndimage
+
+from courtvision.data import PadelCourt
+from courtvision.geometry import (
+    camera_space_to_world_space,
+    compute_ray_intersecting_plane,
+)
+
+colours_per_player_idx = defaultdict(lambda: (255, 255, 255))
+colours_per_player_idx.update(
+    {
+        0: (0, 255, 0),
+        1: (0, 0, 255),
+        2: (255, 0, 0),
+        3: (255, 255, 0),
+        4: (255, 0, 255),
+        5: (0, 255, 255),
+    }
+)
 
 
 def log_court_layout(
@@ -22,7 +41,16 @@ def log_court_layout(
     rotation_vector: np.array,
     court_mesh_path: Path,
 ):
-    import rerun as rr    
+    """_summary_
+
+    Args:
+        camera_matrix (np.array): _description_
+        image_width (int): _description_
+        image_height (int): _description_
+        translation_vector (np.array): _description_
+        rotation_vector (np.array): _description_
+        court_mesh_path (Path): _description_
+    """
     rr.log_pinhole(
         "world/camera/image",
         child_from_parent=camera_matrix,
@@ -39,7 +67,9 @@ def log_court_layout(
         ),
         from_parent=True,
     )
-    rr.log_point("world", np.array([0, 0, 0]))
+    rr.log_point("world/front_left", np.array([0, 0, 0]))
+    # TODO: this should be refectored to use the court_size
+    rr.log_point("world/front_right", np.array([100, 0, 0]))
     rr.log_mesh_file(
         "world",
         mesh_format=rr.MeshFormat("GLB"),
@@ -47,8 +77,83 @@ def log_court_layout(
     )
 
 
+def log_player_detections(
+    detections: list[ultralytics.yolo.engine.results.Results],
+    camera_matrix: np.array,
+    translation_vector: np.array,
+    rotation_vector: np.array,
+    clip_uid: str,
+):
+    player_maker_radius = 5.0
+    if len(detections) > 1:
+        raise NotImplementedError("Only batches of size 1 are supported for now")
+    result = detections[0]
+
+    for det in result.boxes.data:
+        # TODO: Fix this hack. Use?
+        # x1, y1, x2, y2, idx, *_ = det
+        if len(det) == 7:
+            x1, y1, x2, y2, idx, conf, cls = det
+        else:
+            x1, y1, x2, y2, idx, conf = det
+            cls = 0
+        rr.log_rect(
+            f"world/camera/image/player_{int(idx)}",
+            (x1, y1, (x2 - x1), (y2 - y1)),
+            color=colours_per_player_idx[int(idx)],
+        )
+        # Compute the 3D point of the player's feet
+        # Use 2 depth values to unproject the point from the image plane to the camera plane
+        depths = torch.tensor(
+            [[1.0 * PadelCourt.court_scale, 20.0 * PadelCourt.court_scale]]
+        ).T  # Depth values in [mm * PadelCourt.court_scale]
+        mid_feets = torch.tensor([((x1 + x2) / 2, (y2 + y2) / 2)]).repeat(
+            depths.shape[0], 1
+        )
+        mid_feets_base_camera_space = unproject_points(
+            point_2d=mid_feets, camera_matrix=camera_matrix, depth=depths
+        ).squeeze(0)
+        # Using the Translation and Rotation Vector of the camera, transform the point from camera space to world space
+        mid_feet_base_world_space = camera_space_to_world_space(
+            mid_feets_base_camera_space.squeeze(0).numpy().T,
+            translation_vector,
+            rotation_vector,
+        )
+        # Compute the intersection of the ray formed by the camera position and the 3D point with the plane
+        intersection = compute_ray_intersecting_plane(
+            point_a_on_ray=mid_feet_base_world_space[0].reshape(3, 1),
+            point_b_on_ray=mid_feet_base_world_space[1].reshape(3, 1),
+        )
+        rr.log_point(
+            f"world/player_{int(idx)}",
+            intersection,
+            radius=player_maker_radius,
+            color=colours_per_player_idx[int(idx)],
+        )
+
+
+def log_ball_detections(
+    detections: list[dict[str, torch.Tensor]],
+    clip_uid: str,
+):
+    boxes = detections[0]["boxes"]
+    scores = detections[0]["scores"]
+    labels = detections[0]["labels"]
+    for i, (box, score, label) in enumerate(zip(boxes, scores, labels)):
+        rr.log_rect(
+            "world/camera/image/ball_detections",
+            rect=(
+                box[0].item(),
+                box[1].item(),
+                box[2].item() - box[0].item(),
+                box[3].item() - box[1].item(),
+            ),
+            timeless=False,
+        )
+
+
 def plot_coords(img: np.array, src_coords: np.array, show: bool = True, thickness=2):
-    """Draws lines on 'img'
+    """Draws lines on 'img'.
 
     Args:
         img (np.array): _description_

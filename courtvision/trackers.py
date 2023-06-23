@@ -9,12 +9,13 @@ from kornia.geometry import (
     convert_points_from_homogeneous,
     convert_points_to_homogeneous,
 )
-from torch import tensor
-
-from courtvision.geometry import PadelCourt
 
 
 class StateIdx:
+    """
+    Named indices for the state tensor.
+    """
+
     x: int = 0
     y: int = 1
     z: int = 2
@@ -27,23 +28,46 @@ class StateIdx:
     weight: int = 9
 
 
-class Tracker:
+class ParticleFilter:
+    """_summary_"""
+
     def __init__(
         self,
-        num_particles: int = 1000,
+        *,
+        num_particles: int,
+        court_size: torch.Tensor,
         world_to_cam: torch.Tensor | None = None,
         cam_to_image: torch.Tensor | None = None,
-        court_size: torch.tensor = torch.tensor(
-            [PadelCourt.width, PadelCourt.length, PadelCourt.backall_fence_height]
-        ),
+        # torch.tensor(
+        # [PadelCourt.width, PadelCourt.length, PadelCourt.backall_fence_height]
+        # ),
+    ) -> None:
+        self.reset(
+            num_particles=num_particles,
+            court_size=court_size,
+            world_to_cam=world_to_cam,
+            cam_to_image=cam_to_image,
+        )
+
+    def reset(
+        self,
+        *,
+        num_particles: int,
+        court_size: torch.tensor,
+        world_to_cam: torch.Tensor | None = None,
+        cam_to_image: torch.Tensor | None = None,
     ) -> None:
         self.num_particles = num_particles
+        # Court size is a tensor of the form [width, length, height]
+        self.court_size = court_size
+
         # state: [x, y, z, vx, vy, zv, ax, ay, az, ax, ay, az, weight]
         self.states = torch.randn(
             (num_particles, 3 * 3 + 1),
             names=["num_particles", "state"],
         )
         # Place a prior on the initial state X, Y, Z to be on the court
+
         self.states[:, StateIdx.x] = (
             self.states[:, StateIdx.x] * court_size[StateIdx.x]
             + court_size[StateIdx.x] / 2
@@ -65,13 +89,12 @@ class Tracker:
         self.states[:, StateIdx.ax : StateIdx.az + 1] = 0.0
         self.states[:, StateIdx.az] = -9.8
 
-        self.cam_to_image = torch.randn((3, 4))
+        self.cam_to_image = torch.randn((3, 3))
         if cam_to_image is not None:
             self.cam_to_image = cam_to_image.to(dtype=torch.float32)
         self.world_to_cam = torch.randn((4, 4))
         if world_to_cam is not None:
             self.world_to_cam = world_to_cam.to(dtype=torch.float32)
-        # self.H = self.cam_to_image @ self.world_to_cam
 
     def set_states_to(self, point: torch.tensor):
         # tracker.states[:,0:3] = torch.tensor([1.0, 2.0, 3.0]).repeat((1000,1))
@@ -142,26 +165,31 @@ class Tracker:
         # Define the transition model
         # state: [x, y, z, vx, vy, zv, ax, ay, az, ax, ay, az, weight]
 
-        self.states[:, StateIdx.x : StateIdx.z + 1] = (
-            self.states[:, StateIdx.x : StateIdx.z + 1]
-            + torch.randn((self.num_particles, 3)) * 5.0
-        )
-        # Ensure state is on the court using clamp
-        self.states[:, StateIdx.x] = torch.clamp(
-            self.states[:, StateIdx.x], 0.0, PadelCourt.width
-        )
-        self.states[:, StateIdx.y] = torch.clamp(
-            self.states[:, StateIdx.y], 0.0, PadelCourt.length
-        )
-        self.states[:, StateIdx.z] = torch.clamp(
-            self.states[:, StateIdx.z], 0.0, PadelCourt.backall_fence_height * 1.5
+        # Random walk in the x, y, and z directions
+        # self.states[:, StateIdx.x : StateIdx.z + 1] = (
+        #     self.states[:, StateIdx.x : StateIdx.z + 1]
+        #     + torch.randn((self.num_particles, 3)) * 5.0
+        # )
+
+        # Update the state using the velocity
+        self.states[:, StateIdx.x : StateIdx.z + 1] += (
+            self.states[:, StateIdx.vx : StateIdx.vz + 1]
+            * dt
+            # + torch.randn(
+            #     (self.num_particles, 3)
+            # )*5.0
         )
 
-        # self.states[:, StateIdx.x : StateIdx.z + 1] += (
-        #     self.states[:, StateIdx.vx : StateIdx.vz + 1] * dt + torch.randn(
-        #         (self.num_particles, 3)
-        #     )*5.0
-        # )
+        # Ensure state is on the court using clamp
+        self.states[:, StateIdx.x] = torch.clamp(
+            self.states[:, StateIdx.x], 0.0, self.court_size[StateIdx.x]
+        )
+        self.states[:, StateIdx.y] = torch.clamp(
+            self.states[:, StateIdx.y], 0.0, self.court_size[StateIdx.y]
+        )
+        self.states[:, StateIdx.z] = torch.clamp(
+            self.states[:, StateIdx.z], 0.0, self.court_size[StateIdx.z] * 1.5
+        )
         # # Z cannot be less than zero
         # self.states[:, StateIdx.z] = torch.max(self.states[:, StateIdx.z].rename(None), torch.tensor(0.0))
 
