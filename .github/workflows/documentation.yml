@@ -22,4 +22,5 @@ jobs:
             mkdocs-material-
       - run: curl -sSL https://install.python-poetry.org | python3 -
       - run: poetry install --only docs
+      - run: cp README.md docs/index.md
       - run: poetry run mkdocs gh-deploy --force
