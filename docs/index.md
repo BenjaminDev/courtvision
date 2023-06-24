@@ -1,3 +1,4 @@
+--8<--"README.md"
 # Welcome to CourtVision
 
 A library and simple application aims to extract useful infromation from videos of court-based[^1] sports.

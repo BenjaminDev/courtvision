@@ -30,13 +30,14 @@ theme:
 repo_name: benjamindev/courtvision
 repo_url: https://github.com/benjamindev/courtvision
 edit_uri: ''
+markdown_extensions:
+  - footnotes
 plugins:
 - search
 - mkdocstrings
+
 # - markdownextradata:
     # data: data
 nav:
-- CourtVision: index.md
 - API Documentation:
-  - Courtvison:
     - 'courtvision.vis': api/vision.md
