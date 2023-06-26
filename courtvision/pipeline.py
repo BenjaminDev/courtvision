@@ -110,7 +110,6 @@ if __name__ == "__main__":
             ),
             cache_dir=ANNOTATION_DATA_PATH / "cache",
         ),
-        # camera_info=None,
         camera_info_path=ANNOTATION_DATA_PATH / "cache" / "camera_info.npz",
         court_layout=PadelCourt(),
     )
