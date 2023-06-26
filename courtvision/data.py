@@ -114,7 +114,7 @@ class PadelDataset(BaseModel):
     local_data_dir: Path | None = None
 
 
-# from courtvision.geometry import CameraInfo, PadelCourt
+# # from courtvision.geometry import CameraInfo, PadelCourt
 
 
 @dataclass
@@ -814,6 +814,7 @@ def download_data_item(s3_uri: str, local_path: Path, s3_client=None, use_cached
 
 import enum
 from hashlib import md5
+from typing import Tuple
 
 import torchvision
 
@@ -824,8 +825,10 @@ class StreamType(enum.Enum):
 
 
 def frames_from_clip_segments(
-    dataset: PadelDataset, local_path: Path, stream_type: StreamType = StreamType.VIDEO
-) -> tuple[dict[str, torch.Tensor], str]:
+    dataset: PadelDataset,
+    local_path: Path,
+    stream_type: StreamType = StreamType.VIDEO,
+) -> Tuple[dict[str, torch.Tensor], str]:
     """
     Graps frames for each clip segment in the dataset. A unique id is generated for each clip segment.
     Frames can be either audio or video frames.
@@ -835,14 +838,10 @@ def frames_from_clip_segments(
         local_path (Path): if the file is not already downloaded, it will be downloaded to this path
         stream_type (StreamType, optional): Either `StreamType.VIDEO` or `StreamType.AUDIO`. Defaults to StreamType.VIDEO.
 
-    Returns:
-        tuple[dict[str, torch.Tensor], str]: returns `{"data": torch.Tensor, "pts": torch.Tensor}, unique_id`
-
+    Yields:
+        `{"data": torch.Tensor, "pts": torch.Tensor}, unique_id`
         where `unique_id` is the md5 of the annotation unique_id and the start and end times of the clip.
         And `pts` is a presentation timestamp of the frame expressed in seconds.
-
-    Yields:
-        Iterator[tuple[dict[str, torch.Tensor], str]]: yeilds `{"data": torch.Tensor, "pts": torch.Tensor}, unique_id`
     """
     for sample in dataset.samples:
         sample.data.video_local_path = download_data_item(

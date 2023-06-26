@@ -24,8 +24,8 @@ theme:
   - content.tabs.link
   icon:
     repo: fontawesome/brands/github-alt
-  logo: motion_blur_FILL0_wght400_GRAD0_opsz48.png
-  favicon: motion_blur_FILL0_wght400_GRAD0_opsz48.png
+  logo: motion_blur_FILL0_wght400_GRAD0_opsz48.svg
+  favicon: motion_blur_FILL0_wght400_GRAD0_opsz48.svg
   language: en
 repo_name: benjamindev/courtvision
 repo_url: https://github.com/benjamindev/courtvision
@@ -42,3 +42,4 @@ nav:
 - API Documentation:
     - 'courtvision.vis': api/vision.md
     - 'courtvision.geometry': api/geometry.md
+    - 'courtvision.data': api/data.md
