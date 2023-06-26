@@ -181,7 +181,7 @@ if __name__ == "__main__":
                 ).to(dtype=torch.float32)
 
                 artifacts.ball_tracker.update(obs_state, ball_score)
-
+                # TODO: Move this to a separate function in vis.py
                 rr.log_points(
                     "world/ball_state",
                     positions=artifacts.ball_tracker.xyz,
