@@ -98,6 +98,7 @@ class ParticleFilter:
 
     def set_states_to(self, point: torch.tensor):
         # tracker.states[:,0:3] = torch.tensor([1.0, 2.0, 3.0]).repeat((1000,1))
+
         self.states[:, StateIdx.x : StateIdx.z + 1] = point.repeat(
             (self.num_particles, 1)
         )

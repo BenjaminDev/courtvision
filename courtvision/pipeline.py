@@ -73,17 +73,12 @@ def pipeline(
 
 
 if __name__ == "__main__":
-    ANNOTATION_PATH = Path(
-        "/Users/benjamindecharmoy/projects/courtvision/datasets/clip_segmentations"
-    )
-    ANNOTATION_DATA_PATH = Path(
-        "/Users/benjamindecharmoy/projects/courtvision/datasets/clip_segmentations/data"
-    )
+    # TODO: Make this a proper CLI using Typer. https://github.com/BenjaminDev/courtvision/issues/4
+    ANNOTATION_PATH = Path("../datasets/clip_segmentations")
+    ANNOTATION_DATA_PATH = Path("../datasets/clip_segmentations/data")
     ANNOTATION_DATA_PATH.mkdir(exist_ok=True, parents=True)
 
-    court_mesh_path = Path(
-        "/Users/benjamindecharmoy/projects/courtvision/blender/basic_image.glb"
-    )
+    court_mesh_path = Path("../blender/basic_image.glb")
 
     annotations_file = get_latest_file(ANNOTATION_PATH, "json")
     with open(annotations_file, "r") as f:
@@ -94,20 +89,18 @@ if __name__ == "__main__":
         dataset=dataset,
         ball_detector=BallDetector(
             model_file_or_dir=Path(
-                "/Users/benjamindecharmoy/projects/courtvision/models/ball_detector/fasterrcnn_resnet50_fpn_project-1-at-2023-05-23-14-38-c467b6ad-67.pt"
+                "../models/ball_detector/fasterrcnn_resnet50_fpn_project-1-at-2023-05-23-14-38-c467b6ad-67.pt"
             ),
             cache_dir=ANNOTATION_DATA_PATH / "cache",
         ),
         ball_tracker=ParticleFilter(
             num_particles=10_000,
             court_size=torch.tensor(
-                [PadelCourt.width, PadelCourt.length, PadelCourt.backall_fence_height]
+                [PadelCourt.width, PadelCourt.length, PadelCourt.backwall_fence_height]
             ),
         ),
         player_detector=PlayerDetector(
-            model_dir=Path(
-                "/Users/benjamindecharmoy/projects/courtvision/models/player_detection"
-            ),
+            model_dir=Path("../models/player_detection"),
             cache_dir=ANNOTATION_DATA_PATH / "cache",
         ),
         camera_info_path=ANNOTATION_DATA_PATH / "cache" / "camera_info.npz",
@@ -119,7 +112,7 @@ if __name__ == "__main__":
     artifacts.ball_tracker.reset(
         num_particles=10_000,
         court_size=torch.tensor(
-            [PadelCourt.width, PadelCourt.length, PadelCourt.backall_fence_height]
+            [PadelCourt.width, PadelCourt.length, PadelCourt.backwall_fence_height]
         ),
         world_to_cam=artifacts.camera_info.world_space_to_camera_space(),
         cam_to_image=torch.tensor(artifacts.camera_info.camera_matrix),
@@ -127,8 +120,12 @@ if __name__ == "__main__":
     rr.init(
         "courtvision",
         spawn=False,
+        recording_id="test",
     )
-    ip, port = "127.0.0.1", "9876"
+    ip, port = (
+        "127.0.0.1",
+        "9876",
+    )  # TODO: Make this configurable https://github.com/BenjaminDev/courtvision/issues/4
     rr.connect(f"{ip}:{port}")
     current_uid = None
     for i, (frame, uid) in enumerate(
@@ -156,6 +153,7 @@ if __name__ == "__main__":
             "world/camera/image",
             frame["data"].permute(1, 2, 0).numpy().astype(np.uint8),
         )
+        break
         # Detect and log ball detections
         ball_detections = artifacts.ball_detector.predict(
             frame["data"].unsqueeze(0).float() / 255.0,

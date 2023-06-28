@@ -184,7 +184,7 @@ class PadelCourt:
     width: float = 10.0 * court_scale
     length: float = 20.0 * court_scale
     backwall_height: float = 3.0 * court_scale
-    backall_fence_height: float = 4.0 * court_scale
+    backwall_fence_height: float = 4.0 * court_scale
     serve_line_from_back_line: float = 3.0 * court_scale
     line_width: float = 0.05 * court_scale
     net_height: float = 0.78 * court_scale  # 0.78m

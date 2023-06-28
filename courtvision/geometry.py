@@ -5,6 +5,7 @@ from typing import Literal
 
 import cv2
 import numpy as np
+import structlog
 
 from courtvision.data import CameraInfo, PadelCourt
 
@@ -286,13 +287,13 @@ corners_world_3d = {
         PadelCourt.net_height,
     ),
     "t_center_center": (PadelCourt.width / 2, PadelCourt.length / 2, 0),
-    "u_topfence_front_left": (0, 0, PadelCourt.backall_fence_height),
-    "v_topfence_front_right": (PadelCourt.width, 0, PadelCourt.backall_fence_height),
-    "w_topfence_back_left": (0, PadelCourt.length, PadelCourt.backall_fence_height),
+    "u_topfence_front_left": (0, 0, PadelCourt.backwall_fence_height),
+    "v_topfence_front_right": (PadelCourt.width, 0, PadelCourt.backwall_fence_height),
+    "w_topfence_back_left": (0, PadelCourt.length, PadelCourt.backwall_fence_height),
     "x_topfence_back_right": (
         PadelCourt.width,
         PadelCourt.length,
-        PadelCourt.backall_fence_height,
+        PadelCourt.backwall_fence_height,
     ),
     "y_top_center_left": (0, PadelCourt.length / 2, PadelCourt.backwall_height),
     "z_top_center_right": (
@@ -1148,6 +1149,9 @@ from courtvision.data import (
 def calibrate_camera(
     artifacts: CourtVisionArtifacts, logger: Optional[Any] = None
 ) -> CourtVisionArtifacts:
+    if logger is None:
+        logger = structlog.get_logger(__name__)
+
     if artifacts.camera_info:
         logger.info(
             "Camera already calibrated - using supplied camera_info",
