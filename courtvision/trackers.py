@@ -167,19 +167,19 @@ class ParticleFilter:
         # state: [x, y, z, vx, vy, zv, ax, ay, az, ax, ay, az, weight]
 
         # Random walk in the x, y, and z directions
-        # self.states[:, StateIdx.x : StateIdx.z + 1] = (
-        #     self.states[:, StateIdx.x : StateIdx.z + 1]
-        #     + torch.randn((self.num_particles, 3)) * 5.0
-        # )
+        self.states[:, StateIdx.x : StateIdx.z + 1] = (
+            self.states[:, StateIdx.x : StateIdx.z + 1]
+            + torch.randn((self.num_particles, 3)) * 5.0
+        )
 
         # Update the state using the velocity
-        self.states[:, StateIdx.x : StateIdx.z + 1] += (
-            self.states[:, StateIdx.vx : StateIdx.vz + 1]
-            * dt
-            # + torch.randn(
-            #     (self.num_particles, 3)
-            # )*5.0
-        )
+        # self.states[:, StateIdx.x : StateIdx.z + 1] += (
+        #     self.states[:, StateIdx.vx : StateIdx.vz + 1]
+        #     * dt
+        #     # + torch.randn(
+        #     #     (self.num_particles, 3)
+        #     # )*5.0
+        # )
 
         # Ensure state is on the court using clamp
         self.states[:, StateIdx.x] = torch.clamp(

@@ -128,7 +128,7 @@ if __name__ == "__main__":
     )  # TODO: Make this configurable https://github.com/BenjaminDev/courtvision/issues/4
     rr.connect(f"{ip}:{port}")
     current_uid = None
-    for i, (frame, uid) in enumerate(
+    for i, (frame, uid, match_id) in enumerate(
         frames_from_clip_segments(
             artifacts.dataset,
             local_path=artifacts.local_cache_path,
@@ -139,7 +139,7 @@ if __name__ == "__main__":
         rr.set_time_sequence(uid, i)
         if uid != current_uid:
             if current_uid is not None:
-                pass
+                break
             log_court_layout(
                 camera_matrix=artifacts.camera_info.camera_matrix,
                 image_width=artifacts.camera_info.image_width,

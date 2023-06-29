@@ -839,9 +839,10 @@ def frames_from_clip_segments(
         stream_type (StreamType, optional): Either `StreamType.VIDEO` or `StreamType.AUDIO`. Defaults to StreamType.VIDEO.
 
     Yields:
-        `{"data": torch.Tensor, "pts": torch.Tensor}, unique_id`
+        `{"data": torch.Tensor, "pts": torch.Tensor}, unique_id, match_id`
         where `unique_id` is the md5 of the annotation unique_id and the start and end times of the clip.
         And `pts` is a presentation timestamp of the frame expressed in seconds.
+        `match_id` is the parent folder of the clip.
     """
     for sample in dataset.samples:
         sample.data.video_local_path = download_data_item(
