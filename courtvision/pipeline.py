@@ -139,7 +139,7 @@ if __name__ == "__main__":
         rr.set_time_sequence(uid, i)
         if uid != current_uid:
             if current_uid is not None:
-                break
+                pass
             log_court_layout(
                 camera_matrix=artifacts.camera_info.camera_matrix,
                 image_width=artifacts.camera_info.image_width,
@@ -153,7 +153,7 @@ if __name__ == "__main__":
             "world/camera/image",
             frame["data"].permute(1, 2, 0).numpy().astype(np.uint8),
         )
-        break
+
         # Detect and log ball detections
         ball_detections = artifacts.ball_detector.predict(
             frame["data"].unsqueeze(0).float() / 255.0,

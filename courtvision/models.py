@@ -120,5 +120,5 @@ class PlayerDetector:
                     persist=True,
                 )
             print(detections[0].boxes)
-            # torch.save(detections, cache_path)
+            torch.save(detections, cache_path)
             return detections

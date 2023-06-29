@@ -124,6 +124,7 @@ def log_player_detections(
             point_a_on_ray=mid_feet_base_world_space[0].reshape(3, 1),
             point_b_on_ray=mid_feet_base_world_space[1].reshape(3, 1),
         )
+
         rr.log_point(
             f"world/player_{int(idx)}",
             intersection,

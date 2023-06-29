@@ -864,13 +864,13 @@ def frames_from_clip_segments(
                         if frame["pts"] < start_time:
                             # seeks is not always accuarte!
                             # burn frames until we get to the right time.
-                            # Alternative - build torchvison from source with video_reader backend
+                            # Alternative - build torchvision from source with video_reader backend
                             continue
                         if frame["pts"] > end_time:
                             break
                         yield frame, md5(
                             f"{start_time}{end_time}{annotation.unique_id}".encode()
-                        ).hexdigest()
+                        ).hexdigest(), f"{sample.data.video_local_path.parent.name}"
 
 
 def get_normalized_calibration_image_points_and_clip_ids(
