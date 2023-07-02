@@ -31,3 +31,5 @@ courtvision_balldetector/logs/*
 site/*
 *.ckpt
 !motion_blur_FILL0_wght400_GRAD0_opsz48.png
+.venv311/*
+

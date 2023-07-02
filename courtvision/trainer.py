@@ -23,7 +23,7 @@ class BallDetectorModel(pl.LightningModule):
         super().__init__()
         self.model = get_fasterrcnn_ball_detection_model(
             model_path=Path(
-                "/Users/benjamindecharmoy/projects/courtvision/models/ball_detector/fasterrcnn_resnet50_fpn_project-1-at-2023-05-23-14-38-c467b6ad-67.pt"
+                "../models/fasterrcnn_resnet50_fpn_project-1-at-2023-05-23-14-38-c467b6ad-67.pt"
             )
         )
         self.model.train()
@@ -57,6 +57,7 @@ class BallDetectorModel(pl.LightningModule):
     def on_validation_epoch_end(self):
 
         images, targets = next(iter(self.trainer.val_dataloaders))
+        images = [img.to("cuda") for img in images]
         self.eval()  # set to eval mode to get predictions
         with torch.no_grad():
             preds = self.model(images)
@@ -90,7 +91,7 @@ def log_wb_image_and_bbox(
         image_height, image_width = image.shape[-2:]
         images_to_log.append(
             wandb.Image(
-                image.permute(1, 2, 0).numpy(),
+                image.permute(1, 2, 0).cpu().numpy(),
                 boxes={
                     "predictions": {
                         "box_data": [
@@ -106,8 +107,8 @@ def log_wb_image_and_bbox(
                                 "scores": {"score": float(score)},
                             }
                             for (x_min, y_min, x_max, y_max), score in zip(
-                                pred["boxes"].numpy(),
-                                pred["scores"].numpy(),
+                                pred["boxes"].cpu().numpy(),
+                                pred["scores"].cpu().numpy(),
                                 strict=True,
                             )
                         ]
@@ -124,7 +125,7 @@ def log_wb_image_and_bbox(
                                 "class_id": 1,
                                 "box_caption": "ball",
                             }
-                            for x_min, y_min, x_max, y_max in target["boxes"].numpy()
+                            for x_min, y_min, x_max, y_max in target["boxes"].cpu().numpy()
                         ],
                     },
                 },
@@ -137,7 +138,7 @@ def log_wb_image_and_bbox(
 from courtvision.data import CourtVisionDataset, PadelDataset
 
 ANNOTATION_PATH = Path(
-    "/Users/benjamindecharmoy/projects/courtvision/datasets/ball_dataset"
+    "../datasets/ball_dataset"
 )
 ANNOTATION_DATA_PATH = ANNOTATION_PATH / "data"
 ANNOTATION_DATA_PATH.mkdir(exist_ok=True, parents=True)
@@ -159,26 +160,32 @@ courtvision_dataset = CourtVisionBallDataset(
 )
 from pytorch_lightning.loggers import WandbLogger
 
-wandb_logger = WandbLogger(project="CourtVision-Ball-Detection")
+wandb_logger = WandbLogger(
+    project="CourtVision-Ball-Detection", 
+    save_dir="/mnt/vol_b/ball_detector/" 
+)
 
 ball_dataset_train, balldataset_val = random_split(courtvision_dataset, [60, 8])
 
 train_loader = DataLoader(
-    ball_dataset_train, batch_size=4, collate_fn=CourtVisionBallDataset.collate_fn
+    ball_dataset_train, batch_size=2, collate_fn=CourtVisionBallDataset.collate_fn
 )
 val_loader = DataLoader(
-    balldataset_val, batch_size=4, collate_fn=CourtVisionBallDataset.collate_fn
+    balldataset_val, batch_size=2, collate_fn=CourtVisionBallDataset.collate_fn
 )
 
 # model
 model = BallDetectorModel()
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = "cuda" if torch.cuda.is_available() else "cpu"
 # training
+from pytorch_lightning.callbacks import ModelCheckpoint
 
+checkpoint_callback = ModelCheckpoint(dirpath="/mnt/vol_b/ball_detector/models", save_top_k=5, monitor="val_loss")
 trainer = pl.Trainer(
     limit_train_batches=0.5,
-    accelerator="cpu",
+    accelerator=device,
     log_every_n_steps=1,
     logger=wandb_logger,
+    callbacks=[checkpoint_callback]
 )
 trainer.fit(model, train_loader, val_loader)
