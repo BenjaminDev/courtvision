@@ -17,7 +17,7 @@ numpy = "^1.24.2"
 # TODO: this is a macosx_11_0_arm64 only wheel!
 
 pytorch-lightning = "^2.0.1.post0"
-pydantic = "^1.10.7"
+pydantic = "^2.0.0"
 av = "^10.0.0"
 pytube = "15.0.0"
 structlog = "^23.1.0"
@@ -32,6 +32,7 @@ kornia = "^0.6.12"
 boto3 = "^1.26.160"
 rerun-sdk = "^0.7.0"
 ultralytics = "^8.0.121"
+pydantic-settings = "^2.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
