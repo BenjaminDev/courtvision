@@ -6,7 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AliasChoices
 from torch.utils.data import DataLoader
 from torchvision.datasets import VisionDataset
 
@@ -15,10 +15,10 @@ from courtvision.trackers import ParticleFilter
 
 
 class AnnotationDataPath(BaseModel):
-    video_url: Optional[Path]
-    video_local_path: Optional[Path]
-    image_local_path: Optional[Path]
-    image: Optional[Path] = Field(None, alias="img")
+    video_url: Optional[Path] = None
+    video_local_path: Optional[Path] = None
+    image_local_path: Optional[Path] = None
+    image: Optional[Path] = Field(None, validation_alias=AliasChoices('img', 'image'))
     # TODO: #1 use aliases to have a single source of truth file locations
     #       both locally and on reomote - eg: s3
 

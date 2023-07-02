@@ -16,15 +16,14 @@ from courtvision.models import (
     get_fasterrcnn_ball_detection_model,
 )
 from courtvision.swiss import get_latest_file
+from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
 
 class BallDetectorModel(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, model_path: Path):
         super().__init__()
         self.model = get_fasterrcnn_ball_detection_model(
-            model_path=Path(
-                "../models/fasterrcnn_resnet50_fpn_project-1-at-2023-05-23-14-38-c467b6ad-67.pt"
-            )
+            model_path=model_path,
         )
         self.model.train()
 
@@ -61,6 +60,17 @@ class BallDetectorModel(pl.LightningModule):
         self.eval()  # set to eval mode to get predictions
         with torch.no_grad():
             preds = self.model(images)
+        metric = MeanAveragePrecision(iou_type="bbox")
+
+        # Update metric with predictions and respective ground truth
+        preds_cpu = [  {k: v.cpu() for k, v in pred.items()} for pred in preds]
+        metric.update(preds_cpu, targets)
+        
+        # Compute the results
+        result = metric.compute()
+        for k, v in result.items():
+            self.log(f"val_{k}", v)
+        
         log_wb_image_and_bbox(
             images=images,
             preds=preds,
@@ -86,7 +96,9 @@ def log_wb_image_and_bbox(
     global_step: int,
 ):
     images_to_log = []
-
+    print(f"\n\nLogging images {global_step}\n\n")    
+    if len(preds) < 1:
+        breakpoint()
     for image, pred, target in zip(images, preds, targets):
         image_height, image_width = image.shape[-2:]
         images_to_log.append(
@@ -132,60 +144,74 @@ def log_wb_image_and_bbox(
             )
         )
 
-    logger.log({"image": images_to_log}, step=global_step)
+    logger.log({"image": images_to_log})
 
 
 from courtvision.data import CourtVisionDataset, PadelDataset
+from courtvision.data import CourtVisionBallDataset
+from pytorch_lightning.callbacks import ModelCheckpoint
+if __name__ == "__main__":
+    from courtvision.config import CourtVisionSettings
+    settings = CourtVisionSettings()    
+    ANNOTATION_PATH = Path(
+        settings.datasets_path/"ball_dataset"
+    )
+    ANNOTATION_DATA_PATH = ANNOTATION_PATH / "data"
+    ANNOTATION_DATA_PATH.mkdir(exist_ok=True, parents=True)
 
-ANNOTATION_PATH = Path(
-    "../datasets/ball_dataset"
-)
-ANNOTATION_DATA_PATH = ANNOTATION_PATH / "data"
-ANNOTATION_DATA_PATH.mkdir(exist_ok=True, parents=True)
+
+    annotations_file = get_latest_file(ANNOTATION_PATH, "json")
+    with open(annotations_file, "r") as f:
+        padel_dataset = PadelDataset(
+            samples=json.load(f), local_data_dir=ANNOTATION_DATA_PATH
+        )
 
 
-annotations_file = get_latest_file(ANNOTATION_PATH, "json")
-with open(annotations_file, "r") as f:
-    padel_dataset = PadelDataset(
-        samples=json.load(f), local_data_dir=ANNOTATION_DATA_PATH
+
+    courtvision_dataset = CourtVisionBallDataset(
+        dataset=padel_dataset,
+        root=ANNOTATION_DATA_PATH,
+        download=True,
+    )
+    from pytorch_lightning.loggers import WandbLogger
+
+    wandb_logger = WandbLogger(
+        project=settings.wb_project, 
+        save_dir=settings.wb_save_dir, 
     )
 
+    ball_dataset_train, balldataset_val = random_split(courtvision_dataset, [60, 8])
 
-from courtvision.data import CourtVisionBallDataset
+    train_loader = DataLoader(
+        ball_dataset_train, batch_size=2, collate_fn=CourtVisionBallDataset.collate_fn
+    )
+    val_loader = DataLoader(
+        balldataset_val, batch_size=2, collate_fn=CourtVisionBallDataset.collate_fn
+    )
 
-courtvision_dataset = CourtVisionBallDataset(
-    dataset=padel_dataset,
-    root=ANNOTATION_DATA_PATH,
-    download=True,
-)
-from pytorch_lightning.loggers import WandbLogger
+    # model
+    model = BallDetectorModel(model_path=settings.ball_models_dir/settings.ball_model_name)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # training
+    
 
-wandb_logger = WandbLogger(
-    project="CourtVision-Ball-Detection", 
-    save_dir="/mnt/vol_b/ball_detector/" 
-)
-
-ball_dataset_train, balldataset_val = random_split(courtvision_dataset, [60, 8])
-
-train_loader = DataLoader(
-    ball_dataset_train, batch_size=2, collate_fn=CourtVisionBallDataset.collate_fn
-)
-val_loader = DataLoader(
-    balldataset_val, batch_size=2, collate_fn=CourtVisionBallDataset.collate_fn
-)
-
-# model
-model = BallDetectorModel()
-device = "cuda" if torch.cuda.is_available() else "cpu"
-# training
-from pytorch_lightning.callbacks import ModelCheckpoint
-
-checkpoint_callback = ModelCheckpoint(dirpath="/mnt/vol_b/ball_detector/models", save_top_k=5, monitor="val_loss")
-trainer = pl.Trainer(
-    limit_train_batches=0.5,
-    accelerator=device,
-    log_every_n_steps=1,
-    logger=wandb_logger,
-    callbacks=[checkpoint_callback]
-)
-trainer.fit(model, train_loader, val_loader)
+    checkpoint_callback = ModelCheckpoint(
+        dirpath=settings.ball_checkpoints_dir, 
+        save_top_k=5, 
+        monitor="val_loss"
+    )
+    
+    checkpoint_weights_only = ModelCheckpoint(
+        dirpath=settings.ball_checkpoints_weights_only, 
+        save_top_k=5, 
+        monitor="val_loss"
+    )
+    
+    trainer = pl.Trainer(
+        limit_train_batches=0.5,
+        accelerator=device,
+        log_every_n_steps=1,
+        logger=wandb_logger,
+        callbacks=[checkpoint_weights_only]
+    )
+    trainer.fit(model, train_loader, val_loader)
