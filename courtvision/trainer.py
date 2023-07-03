@@ -17,6 +17,7 @@ from courtvision.models import (
 )
 from courtvision.swiss import get_latest_file
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
+from courtvision.data import validate_dataloader    
 
 
 class BallDetectorModel(pl.LightningModule):
@@ -44,6 +45,7 @@ class BallDetectorModel(pl.LightningModule):
         return losses
 
     def validation_step(self, val_batch, batch_idx):
+
         images, targets = val_batch
         self.train()  # set to train mode to get losses. TODO: fix this see `on_validation_model_train` ?
         with torch.no_grad():
@@ -54,7 +56,7 @@ class BallDetectorModel(pl.LightningModule):
         return loss
 
     def on_validation_epoch_end(self):
-
+        
         images, targets = next(iter(self.trainer.val_dataloaders))
         images = [img.to("cuda") for img in images]
         self.eval()  # set to eval mode to get predictions
@@ -78,6 +80,7 @@ class BallDetectorModel(pl.LightningModule):
             logger=self.trainer.logger.experiment,
             global_step=self.global_step,
         )
+          
 
 
 # from typing import Any
@@ -179,19 +182,22 @@ if __name__ == "__main__":
         project=settings.wb_project, 
         save_dir=settings.wb_save_dir, 
     )
-
-    ball_dataset_train, balldataset_val = random_split(courtvision_dataset, [60, 8])
+    
+    ball_dataset_train, balldataset_val = random_split(courtvision_dataset, [len(courtvision_dataset)-20, 20 ])
 
     train_loader = DataLoader(
-        ball_dataset_train, batch_size=2, collate_fn=CourtVisionBallDataset.collate_fn
+        ball_dataset_train, batch_size=1, collate_fn=CourtVisionBallDataset.collate_fn
     )
+    validate_dataloader(train_loader)
     val_loader = DataLoader(
-        balldataset_val, batch_size=2, collate_fn=CourtVisionBallDataset.collate_fn
+        balldataset_val, batch_size=1, collate_fn=CourtVisionBallDataset.collate_fn
     )
+    validate_dataloader(val_loader)
 
     # model
     model = BallDetectorModel(model_path=settings.ball_models_dir/settings.ball_model_name)
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    # device = "cpu"
     # training
     
 
@@ -212,6 +218,7 @@ if __name__ == "__main__":
         accelerator=device,
         log_every_n_steps=1,
         logger=wandb_logger,
+        num_sanity_val_steps=-1,
         callbacks=[checkpoint_weights_only]
     )
     trainer.fit(model, train_loader, val_loader)
