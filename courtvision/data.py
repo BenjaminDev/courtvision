@@ -489,10 +489,12 @@ class CourtVisionBallDataset(VisionDataset):
     def collate_fn(batch):
         """Collate function for the dataloader"""
         images, samples = zip(*batch)
+        
         targets = [
             {
                 "boxes": annotations_to_bbox(sample.annotations),
-                "labels": torch.ones(1, dtype=torch.int64),
+                "labels": annotations_to_label(sample.annotations),
+                "file_location": sample.data.image_local_path.as_posix(),
             }
             for sample in samples
         ]
@@ -704,7 +706,14 @@ class CourtVisionDataset(VisionDataset):
             draw_annotaion(annot, image)
         plt.imshow(image.squeeze(0).permute(1, 2, 0))
 
-
+def annotations_to_label(annotations: list[Annotation]):
+    labels = []
+    for annotation in annotations:
+        labels.extend(
+            [r.value.rectanglelabels[0] for r in annotation.result if isinstance(r.value, RectValue)]
+        )
+    
+    return torch.ones(len(labels), dtype=torch.int64)
 def annotations_to_bbox(annotations: list[Annotation]):
     bboxes = []
     original_sizes = []
@@ -721,7 +730,7 @@ def annotations_to_bbox(annotations: list[Annotation]):
         )
     # if not bboxes:
     # raise ValueError("No bounding boxes in annotation")
-
+    # bboxes = bboxes[:1] # HACK: #1
     return torch.stack(
         [
             torch.tensor(
@@ -752,9 +761,20 @@ def collate_fn(batch):
 
 
 def validate_dataloader(dataloader: DataLoader):
-    for (targets, images) in dataloader:
+    
+    for (images, targets) in dataloader:
         assert all(o["boxes"].shape for o in targets)
         assert all(o.shape for o in images)
+        for image, target in zip(images, targets):
+            height, width = image.shape[1:]
+            assert all(
+                x > 0 and x < width for x in target["boxes"][0][::2]
+            )
+            assert all(
+                y > 0 and y < height for y in target["boxes"][0][1::2]
+            )
+        # breakpoint()
+            
 
 
 def get_keypoints_as_dict(
