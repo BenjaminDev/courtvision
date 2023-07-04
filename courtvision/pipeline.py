@@ -89,7 +89,7 @@ if __name__ == "__main__":
         dataset=dataset,
         ball_detector=BallDetector(
             model_file_or_dir=Path(
-                "../models/ball_detector/fasterrcnn_resnet50_fpn_project-1-at-2023-05-23-14-38-c467b6ad-67.pt"
+                "/Users/benjamindecharmoy/projects/courtvision/models/ball_detector/epoch=111-step=1680.ckpt"
             ),
             cache_dir=ANNOTATION_DATA_PATH / "cache",
         ),
