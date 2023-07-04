@@ -1,1 +1,5 @@
-<this will be replaced with content of README.md>
+THIS SHOULD BE COPY OF README.MD
+USE:
+```
+cp README.md docs/index.md && mkdocs serve
+```

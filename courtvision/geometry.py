@@ -1129,8 +1129,8 @@ def calibrate_and_evaluate(
         translation_vector=tvec,
         image_width=image_width,
         image_height=image_height,
-        error_in_reprojecred_planar_points=repo_erro,
-        error_in_reprojecred_points=reprojection_error,
+        error_in_reprojected_planar_points=repo_erro,
+        error_in_reprojected_points=reprojection_error,
         valid_for_clip_ids=valid_clip_ids,
     )
 
@@ -1274,7 +1274,7 @@ def find_optimal_calibration_and_pose(
         )
     )
 
-    best_error_in_reprojecred_points = 10000.0
+    best_error_in_reprojected_points = 10000.0
     best_camera_info = None
 
     for calibration_pair, pose_pair in product(
@@ -1294,7 +1294,7 @@ def find_optimal_calibration_and_pose(
             all_image_points=all_image_points,
             all_world_points=all_world_points,
         )
-        if camera_info.error_in_reprojecred_points < best_error_in_reprojecred_points:
+        if camera_info.error_in_reprojected_points < best_error_in_reprojected_points:
             best_camera_info = camera_info
     if best_camera_info is None:
         raise RuntimeError("Failed to find optimal calibration and pose")

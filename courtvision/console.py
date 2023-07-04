@@ -8,15 +8,6 @@ from textual.widgets import DirectoryTree
 from courtvision.data import PadelDataset, StreamType, frames_from_clip_segments
 from courtvision.swiss import get_latest_file
 
-# class DirectoryTreeApp(App):
-#     def compose(self) -> ComposeResult:
-#         yield DirectoryTree("./")
-
-
-# if __name__ == "__main__":
-#     app = DirectoryTreeApp()
-#     app.run()
-
 
 def grab_frames_from_clips(
     frame_interval: int = 6,
@@ -25,6 +16,15 @@ def grab_frames_from_clips(
         "/Users/benjamindecharmoy/projects/courtvision/balldataset"
     ),
 ):
+    """Grabs frames from the clips in the dataset and saves every `frame_interval`th
+    frame to `output_dir` for a maximum of `max_num_frames` frames.
+
+    Args:
+        frame_interval (int, optional): Save every `frame_interval`. Defaults to 6.
+        max_num_frames (int, optional): Max number of frames to save. Defaults to 800.
+        output_dir (Path, optional): Frames are saved to this directory. Defaults to Path( "/Users/benjamindecharmoy/projects/courtvision/balldataset" ).
+    """
+    # TODO: Add these as cli args https://github.com/BenjaminDev/courtvision/issues/10
     ANNOTATION_PATH = Path(
         "/Users/benjamindecharmoy/projects/courtvision/datasets/clip_segmentations"
     )
@@ -55,3 +55,5 @@ def grab_frames_from_clips(
                 (output_dir / f"{uid}_{i:04}.png").as_posix(),
                 frame["data"].permute(1, 2, 0).numpy()[:, :, ::-1],
             )
+        if i >= max_num_frames:
+            break

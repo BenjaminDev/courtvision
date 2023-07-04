@@ -157,7 +157,7 @@ def log_wb_image_and_bbox(
 
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-from courtvision.data import CourtVisionBallDataset, CourtVisionDataset, PadelDataset
+from courtvision.data import CourtVisionBallDataset, PadelDataset
 
 if __name__ == "__main__":
     from courtvision.config import CourtVisionTrainingSettings
