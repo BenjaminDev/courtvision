@@ -6,7 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from pydantic import BaseModel, Field, AliasChoices
+from pydantic import AliasChoices, BaseModel, Field
 from torch.utils.data import DataLoader
 from torchvision.datasets import VisionDataset
 
@@ -18,7 +18,7 @@ class AnnotationDataPath(BaseModel):
     video_url: Optional[Path] = None
     video_local_path: Optional[Path] = None
     image_local_path: Optional[Path] = None
-    image: Optional[Path] = Field(None, validation_alias=AliasChoices('img', 'image'))
+    image: Optional[Path] = Field(None, validation_alias=AliasChoices("img", "image"))
     # TODO: #1 use aliases to have a single source of truth file locations
     #       both locally and on reomote - eg: s3
 
@@ -73,7 +73,7 @@ class PolygonValue(BaseModel):
 
 
 class ClipSegmentResult(BaseModel):
-    original_length: Optional[float]
+    original_length: Optional[float] = None
     clip_id: str = Field(..., alias="id")
     kind: str = Field(..., alias="type")
     value: Union[
@@ -98,8 +98,8 @@ class GeneralResult(BaseModel):
 class Annotation(BaseModel):
     unique_id: str
     result: Union[
-        list[ClipSegmentResult],
         list[GeneralResult],
+        list[ClipSegmentResult],
     ]
 
 
@@ -864,7 +864,10 @@ def frames_from_clip_segments(
         And `pts` is a presentation timestamp of the frame expressed in seconds.
         `match_id` is the parent folder of the clip.
     """
-    for sample in dataset.samples:
+    from rich.progress import track
+
+    for sample in track(dataset.samples, description=f"Downloading data"):
+        # for sample in dataset.samples:
         sample.data.video_local_path = download_data_item(
             s3_uri=sample.data.video_url,
             local_path=local_path
@@ -881,6 +884,7 @@ def frames_from_clip_segments(
                         sample.data.video_local_path.as_posix(), stream_type.value
                     )
                     reader.seek(start_time)
+                try:
                     while frame := next(reader):
                         if frame["pts"] < start_time:
                             # seeks is not always accuarte!
@@ -892,6 +896,9 @@ def frames_from_clip_segments(
                         yield frame, md5(
                             f"{start_time}{end_time}{annotation.unique_id}".encode()
                         ).hexdigest(), f"{sample.data.video_local_path.parent.name}"
+                except Exception as e:
+                    print(f"{sample.data.video_local_path=} has invalid data {e=}")
+                    continue
 
 
 def get_normalized_calibration_image_points_and_clip_ids(

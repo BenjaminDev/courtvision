@@ -40,17 +40,18 @@ def grab_frames_from_clips(
     annotations_file = get_latest_file(ANNOTATION_PATH, "json")
     with open(annotations_file, "r") as f:
         dataset = PadelDataset(samples=json.load(f))
-    for i, (frame, uid) in enumerate(
+    print(f"Found {len(dataset.samples)} clips")
+    for i, (frame, uid, match_id) in enumerate(
         frames_from_clip_segments(
             dataset,
             local_path=ANNOTATION_DATA_PATH,
             stream_type=StreamType.VIDEO,
         )
     ):
+
         if i % frame_interval == 0:
+            print(f"Processing frame {i} of clip {uid}")
             cv2.imwrite(
                 (output_dir / f"{uid}_{i:04}.png").as_posix(),
                 frame["data"].permute(1, 2, 0).numpy()[:, :, ::-1],
             )
-        if i > max_num_frames:
-            break

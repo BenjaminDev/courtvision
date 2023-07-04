@@ -14,6 +14,11 @@ def get_fasterrcnn_ball_detection_model(model_path: None | Path = None):
     # return torch.load(model_path)
     pretrained = model_path is None
     # raise NotImplementedError()
+    from courtvision.trainer import BallDetectorModel
+
+    return BallDetectorModel.load_from_checkpoint(
+        model_path, map_location=torch.device("cpu"), strict=False
+    )
 
     model = torchvision.models.detection.fasterrcnn_resnet50_fpn(
         weights=None, weights_backbone=None, pretrained=False
@@ -24,7 +29,7 @@ def get_fasterrcnn_ball_detection_model(model_path: None | Path = None):
     # replace the pre-trained head with a new one
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
     if model_path is not None:
-        model.load_state_dict(torch.load(model_path))
+        model.load_state_dict(torch.load(model_path, map_location=torch.device("cpu")))
     return model
 
 

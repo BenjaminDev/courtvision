@@ -140,17 +140,21 @@ def log_ball_detections(
     boxes = detections[0]["boxes"]
     scores = detections[0]["scores"]
     labels = detections[0]["labels"]
+    rects = []
     for i, (box, score, label) in enumerate(zip(boxes, scores, labels)):
-        rr.log_rect(
-            "world/camera/image/ball_detections",
-            rect=(
+        rects.append(
+            (
                 box[0].item(),
                 box[1].item(),
                 box[2].item() - box[0].item(),
                 box[3].item() - box[1].item(),
-            ),
-            timeless=False,
+            )
         )
+    rr.log_rects(
+        "world/camera/image/ball_detections",
+        rects,
+        timeless=False,
+    )
 
 
 def plot_coords(img: np.array, src_coords: np.array, show: bool = True, thickness=2):
