@@ -13,15 +13,9 @@ logger = structlog.get_logger("courtvision.models")
 def get_fasterrcnn_ball_detection_model(model_path: None | Path = None):
     # return torch.load(model_path)
     pretrained = model_path is None
-    # raise NotImplementedError()
-    from courtvision.trainer import BallDetectorModel
-
-    return BallDetectorModel.load_from_checkpoint(
-        model_path, map_location=torch.device("cpu"), strict=False
-    )
 
     model = torchvision.models.detection.fasterrcnn_resnet50_fpn(
-        weights=None, weights_backbone=None, pretrained=False
+        weights=None, weights_backbone=None, pretrained=pretrained
     )
     num_classes = 2  # 1 class (ball) + background
     # get number of input features for the classifier
@@ -61,6 +55,13 @@ def get_yolov8_player_detection_model(model_path: None | Path = None):
     return model
 
 
+def get_ball_detection_model(model_path: Path):
+    from courtvision.trainer import BallDetectorModel  # TODO: move to models.py
+
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    return BallDetectorModel.load_from_checkpoint(model_path, map_location=device)
+
+
 class BallDetector:
     PIPELINE_NAME = "ball_detection"
 
@@ -69,7 +70,8 @@ class BallDetector:
             self.model_path = get_latest_file(model_file_or_dir)
         else:
             self.model_path = model_file_or_dir
-        self.model = get_fasterrcnn_ball_detection_model(model_path=self.model_path)
+
+        self.model = get_ball_detection_model(model_path=self.model_path)
         self.cache_dir = cache_dir
         self.model.eval()
 

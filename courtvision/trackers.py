@@ -120,14 +120,15 @@ class ParticleFilter:
 
         xyz_mean = (
             self.xyz.rename(None).T @ self.states[:, StateIdx.weight].rename(None)
-        ) / self.states[:, StateIdx.weight].sum()
+        ) / self.states[:, StateIdx.weight].rename(None).sum()
         return xyz_mean.unsqueeze(0)
 
     @staticmethod
     def normalized_weights(states: torch.tensor) -> torch.tensor:
+
         return (
-            states.select("state", StateIdx.weight)
-            / states.select("state", StateIdx.weight).sum()
+            states.select("state", StateIdx.weight).rename(None)
+            / states.select("state", StateIdx.weight).rename(None).sum()
         )
 
     @staticmethod
@@ -167,21 +168,17 @@ class ParticleFilter:
         # state: [x, y, z, vx, vy, zv, ax, ay, az, ax, ay, az, weight]
 
         # Random walk in the x, y, and z directions
-        self.states[:, StateIdx.x : StateIdx.z + 1] = (
-            self.states[:, StateIdx.x : StateIdx.z + 1]
-            + torch.randn((self.num_particles, 3)) * 5.0
-        )
-
-        # Update the state using the velocity
-        # self.states[:, StateIdx.x : StateIdx.z + 1] += (
-        #     self.states[:, StateIdx.vx : StateIdx.vz + 1]
-        #     * dt
-        #     # + torch.randn(
-        #     #     (self.num_particles, 3)
-        #     # )*5.0
+        # self.states[:, StateIdx.x : StateIdx.z + 1] = (
+        #     self.states[:, StateIdx.x : StateIdx.z + 1]
+        #     + torch.randn((self.num_particles, 3)) * 5.0
         # )
 
-        # Ensure state is on the court using clamp
+        # Update the state using the velocity
+        self.states[:, StateIdx.x : StateIdx.z + 1] += (
+            self.states[:, StateIdx.vx : StateIdx.vz + 1] * dt
+        ) + 0.5 * (self.states[:, StateIdx.ax : StateIdx.az + 1] * dt**2)
+
+        # Ensure state is on the court using clamp.
         self.states[:, StateIdx.x] = torch.clamp(
             self.states[:, StateIdx.x], 0.0, self.court_size[StateIdx.x]
         )
@@ -191,24 +188,26 @@ class ParticleFilter:
         self.states[:, StateIdx.z] = torch.clamp(
             self.states[:, StateIdx.z], 0.0, self.court_size[StateIdx.z] * 1.5
         )
-        # # Z cannot be less than zero
-        # self.states[:, StateIdx.z] = torch.max(self.states[:, StateIdx.z].rename(None), torch.tensor(0.0))
+        # Z cannot be less than zero
 
-        # self.states[:, StateIdx.vx : StateIdx.vz + 1] += (
-        #     self.states[:, StateIdx.ax : StateIdx.az + 1] * dt
-        # )
-        # randomize the acceleration in the x and y directions
-        # self.states[:, StateIdx.ax : StateIdx.az + 1] += torch.randn(
-        #     (self.num_particles, 3)
-        # )
-        # Set the acceleration in the z direction to be -9.8
-        # and the acceleration in the x and y directions to be zero
-        # self.states[:, StateIdx.ax : StateIdx.az + 1] = 0.0
-        # self.states[:, StateIdx.az] = -9.8
+        self.states[:, StateIdx.vx : StateIdx.vz + 1] += (
+            self.states[:, StateIdx.ax : StateIdx.az + 1] * dt
+            + torch.randn((self.num_particles, 3)) * 1.5
+        )
+        # # randomize the acceleration in the x and y directions
+        # # self.states[:, StateIdx.ax : StateIdx.az + 1] += torch.randn(
+        # #     (self.num_particles, 3)
+        # # )
+        # # Set the acceleration in the z direction to be -9.8
+        # # and the acceleration in the x and y directions to be zero
+        self.states[:, StateIdx.ax : StateIdx.az + 1] = (
+            torch.randn((self.num_particles, 3)) * 0.9
+        )
+        self.states[:, StateIdx.az] = -0.98  # -0.98
 
     def update(self, obs_state: torch.tensor, score: torch.tensor = torch.tensor(1.0)):
         # Define the likelihood function
-        likelihoods = self.likelihood(obs_state, self.states)
+        likelihoods = self.likelihood(obs_state, self.states) * score
         self.states[:, StateIdx.weight] = self.update_weights(
             self.states[:, StateIdx.weight], likelihoods
         )
@@ -218,7 +217,11 @@ class ParticleFilter:
     def update_weights(
         weights: torch.tensor, likelihoods: torch.tensor
     ) -> torch.tensor:
-        return weights * likelihoods / (weights * likelihoods).sum()
+        return (
+            weights.rename(None)
+            * likelihoods
+            / (weights.rename(None) * likelihoods).sum()
+        )
 
     @staticmethod
     def resample(states: torch.tensor, weights: torch.tensor) -> torch.tensor:
