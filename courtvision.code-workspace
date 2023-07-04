@@ -5,6 +5,9 @@
 		}
 	],
 	"settings": {
-		"files.autoSave": "afterDelay"
+		"files.autoSave": "afterDelay",
+		"cSpell.words": [
+			"reprojected"
+		]
 	}
 }

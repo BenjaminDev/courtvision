@@ -32,6 +32,10 @@ repo_url: https://github.com/benjamindev/courtvision
 edit_uri: ''
 markdown_extensions:
   - footnotes
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+
 plugins:
 - search
 - mkdocstrings
@@ -43,3 +47,10 @@ nav:
     - 'courtvision.vis': api/vision.md
     - 'courtvision.geometry': api/geometry.md
     - 'courtvision.data': api/data.md
+    - 'courtvision.trackers': api/trackers.md
+    - 'courtvision.trainer': api/trainer.md
+    - 'courtvision.console': api/console.md
+    - 'courtvision.pipeline': api/pipeline.md
+    - 'courtvision.swiss': api/swiss.md
+    - 'courtvision.models': api/models.md
+    - 'courtvision.config': api/config.md

@@ -4,6 +4,12 @@ from pydantic_settings import BaseSettings
 
 
 class CourtVisionTrainingSettings(BaseSettings):
+    """
+    All the settings for training a model
+    !!! note
+        The settings are loaded from the .env file in the root of the project.
+    """
+
     datasets_path: Path
     ball_models_dir: Path
     ball_model_name: str
@@ -21,7 +27,13 @@ class CourtVisionTrainingSettings(BaseSettings):
 
 
 class CourtVisionInferenceSettings(BaseSettings):
-    # Tracker(s)
+    """
+    All the settings for running inference and tracking.
+
+    !!! note
+        The settings are loaded from the .env file in the root of the project.
+    """
+
     ball_tracker_num_particles: int = 10_000
 
     # Models

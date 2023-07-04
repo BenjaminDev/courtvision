@@ -1,11 +1,14 @@
+import enum
 from dataclasses import dataclass, field
+from hashlib import md5
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Self, Tuple, Union
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torchvision
 from pydantic import AliasChoices, BaseModel, Field
 from torch.utils.data import DataLoader
 from torchvision.datasets import VisionDataset
@@ -15,6 +18,8 @@ from courtvision.trackers import ParticleFilter
 
 
 class AnnotationDataPath(BaseModel):
+    """Tracks the location of the data for a single data item"""
+
     video_url: Optional[Path] = None
     video_local_path: Optional[Path] = None
     image_local_path: Optional[Path] = None
@@ -27,12 +32,16 @@ class AnnotationDataPath(BaseModel):
 
 
 class LabelValue(BaseModel):
+    """Specifies a clip segment and it's labels"""
+
     start: float
     end: float
     labels: list[str]
 
 
 class RectValue(BaseModel):
+    """Specifies a rectangle and it's labels"""
+
     x: float
     y: float
     width: float
@@ -41,6 +50,8 @@ class RectValue(BaseModel):
 
 
 class KeypointValue(BaseModel):
+    """Specifies a keypoint and it's labels"""
+
     x: float
     y: float
     width: float
@@ -48,6 +59,7 @@ class KeypointValue(BaseModel):
 
 
 class VideoRectSequence(BaseModel):
+    """Specifies a rectangle and it's labels for a frames in a sequence"""
 
     frame: int
     enabled: bool
@@ -60,11 +72,13 @@ class VideoRectSequence(BaseModel):
 
 
 class VideoRectValue(BaseModel):
+    """Specifies a sequence of rectangles and it's labels"""
+
+    # TODO: rename to VideoRectSequenceValue https://github.com/BenjaminDev/courtvision/issues/11
     framesCount: int
     duration: float
     sequence: list[VideoRectSequence]
     labels: list[str]
-    # videorectangle: list[str]
 
 
 class PolygonValue(BaseModel):
@@ -114,11 +128,10 @@ class PadelDataset(BaseModel):
     local_data_dir: Path | None = None
 
 
-# # from courtvision.geometry import CameraInfo, PadelCourt
-
-
 @dataclass
 class CameraInfo:
+    """Camera calibration information"""
+
     valid_for_clip_ids: set[str]
     camera_matrix: np.array
     distortion_coefficients: np.array
@@ -126,8 +139,8 @@ class CameraInfo:
     translation_vector: np.array
     image_width: int
     image_height: int
-    error_in_reprojecred_planar_points: float
-    error_in_reprojecred_points: float
+    error_in_reprojected_planar_points: float
+    error_in_reprojected_points: float
 
     def world_space_to_camera_space(self) -> torch.Tensor:
         rotation_matrix, _ = cv2.Rodrigues(self.rotation_vector)
@@ -141,7 +154,11 @@ class CameraInfo:
         )
 
     def save(self, file_name: Path):
+        """Saves the camera calibration information to a file
 
+        Args:
+            file_name (Path): The file to save the camera calibration information to.
+        """
         np.savez(
             file_name,
             camera_matrix=self.camera_matrix,
@@ -150,14 +167,21 @@ class CameraInfo:
             translation_vector=self.translation_vector,
             image_width=self.image_width,
             image_height=self.image_height,
-            error_in_reprojecred_planar_points=self.error_in_reprojecred_planar_points,
-            error_in_reprojecred_points=self.error_in_reprojecred_points,
+            error_in_reprojected_planar_points=self.error_in_reprojected_planar_points,
+            error_in_reprojected_points=self.error_in_reprojected_points,
             valid_for_clip_ids=self.valid_for_clip_ids,
         )
 
     @staticmethod
-    def load(file_name: str):
+    def load(file_name: str) -> Self:
+        """Loads the camera calibration information from a file.
 
+        Args:
+            file_name (str): Full path to .npz file
+
+        Returns:
+            CameraInfo: Camera calibration information
+        """
         data = np.load(file_name, allow_pickle=True)
         return CameraInfo(
             camera_matrix=data["camera_matrix"],
@@ -166,16 +190,18 @@ class CameraInfo:
             translation_vector=data["translation_vector"],
             image_width=data["image_width"],
             image_height=data["image_height"],
-            error_in_reprojecred_planar_points=data[
-                "error_in_reprojecred_planar_points"
+            error_in_reprojected_planar_points=data[
+                "error_in_reprojected_planar_points"
             ],
-            error_in_reprojecred_points=data["error_in_reprojecred_points"],
+            error_in_reprojected_points=data["error_in_reprojected_points"],
             valid_for_clip_ids=data["valid_for_clip_ids"].tolist(),
         )
 
 
 @dataclass
 class PadelCourt:
+    """Padel court dimensions and locations of key points"""
+
     # The scale of the court is in meters
     # Setting this to 100.0 means that the court is 1_000cm x 2_000cm
     court_scale: float = 10.0
@@ -414,6 +440,8 @@ class PadelCourt:
 
 @dataclass
 class CourtVisionArtifacts:
+    """Tracks the artifacts used in the pipeline"""
+
     local_cache_path: Path
     dataset: PadelDataset
     ball_detector: BallDetector
@@ -421,9 +449,6 @@ class CourtVisionArtifacts:
     player_detector: PlayerDetector
 
     court_layout: PadelCourt
-    # court_detection_model: Path = None
-
-    # camera_info: CameraInfo
     camera_info_path: Path
     _camera_info: CameraInfo = field(init=False, default=None)
 
@@ -489,7 +514,7 @@ class CourtVisionBallDataset(VisionDataset):
     def collate_fn(batch):
         """Collate function for the dataloader"""
         images, samples = zip(*batch)
-        
+
         targets = [
             {
                 "boxes": annotations_to_bbox(sample.annotations),
@@ -504,19 +529,8 @@ class CourtVisionBallDataset(VisionDataset):
     @staticmethod
     def find_image_path(root: Path | str, sample: CourtAnnotatedSample):
         """Finds the image path from a sample"""
-        #         root = Path(root)
-        #         dir_name, _, frame_idx = sample.data.image.stem.partition("_frame")
-        #         dir_name = dir_name.split("-", 1)[-1]
-        #         filename = root / dir_name / f"{dir_name}_frame{frame_idx}.png"
-        # # /Users/benjamindecharmoy/projects/courtvision/labelstudiodata/media/upload/1/b6f5d028-Highlights-TOLITO-AGUIRRE---TITO-ALLEMANDI-vs-CHIOSTRI---MELGRATTI--Sa_Lwr6ooR.png
-        #         if not filename.exists():
-        #             print(f"{filename=} \n{root=}!")
-        #             print(f"{sample.data.image=}")
-        #             raise Exception("Could not find image")
-        #         return filename
         server_file_path = Path(*sample.data.image.parts[2:])  # remove /data/
         filename = Path(f"{root}/{server_file_path}")
-        # print(f"{filename=}")
         return filename
 
     @staticmethod
@@ -583,6 +597,7 @@ class CourtVisionBallDataset(VisionDataset):
         plt.imshow(image.squeeze(0).permute(1, 2, 0))
 
 
+# TODO: Remove CourtVisionDataset https://github.com/BenjaminDev/courtvision/issues/12
 class CourtVisionDataset(VisionDataset):
     def __init__(
         self,
@@ -626,21 +641,8 @@ class CourtVisionDataset(VisionDataset):
 
     @staticmethod
     def find_image_path(root: Path | str, sample: CourtAnnotatedSample):
-        """Finds the image path from a sample"""
-        #         root = Path(root)
-        #         dir_name, _, frame_idx = sample.data.image.stem.partition("_frame")
-        #         dir_name = dir_name.split("-", 1)[-1]
-        #         filename = root / dir_name / f"{dir_name}_frame{frame_idx}.png"
-        # # /Users/benjamindecharmoy/projects/courtvision/labelstudiodata/media/upload/1/b6f5d028-Highlights-TOLITO-AGUIRRE---TITO-ALLEMANDI-vs-CHIOSTRI---MELGRATTI--Sa_Lwr6ooR.png
-        #         if not filename.exists():
-        #             print(f"{filename=} \n{root=}!")
-        #             print(f"{sample.data.image=}")
-        #             raise Exception("Could not find image")
-        #         return filename
-        breakpoint()
         server_file_path = Path(*sample.data.image.parts[2:])  # remove /data/
         filename = Path(f"{root}/{server_file_path}")
-        # print(f"{filename=}")
         return filename
 
     @staticmethod
@@ -706,15 +708,41 @@ class CourtVisionDataset(VisionDataset):
             draw_annotaion(annot, image)
         plt.imshow(image.squeeze(0).permute(1, 2, 0))
 
-def annotations_to_label(annotations: list[Annotation]):
+
+def annotations_to_label(annotations: list[Annotation]) -> torch.IntTensor:
+    """Grab the labels from the annotations
+    !!! note
+        Currently only supports a single label and rects only!
+
+    Args:
+        annotations (list[Annotation]): Annotations from the dataset.
+
+    Returns:
+        torch.IntTensor: A tensor of labels.
+    """
     labels = []
     for annotation in annotations:
         labels.extend(
-            [r.value.rectanglelabels[0] for r in annotation.result if isinstance(r.value, RectValue)]
+            [
+                r.value.rectanglelabels[0]
+                for r in annotation.result
+                if isinstance(r.value, RectValue)
+            ]
         )
-    
+
     return torch.ones(len(labels), dtype=torch.int64)
-def annotations_to_bbox(annotations: list[Annotation]):
+
+
+def annotations_to_bbox(annotations: list[Annotation]) -> torch.Tensor:
+    """Grab the bounding boxes from the annotations.
+    !!! note
+        Coordinates are in image coordinates and *not* normalised coordinates.
+    Args:
+        annotations (list[Annotation]): Annotations from the dataset.
+
+    Returns:
+        torch.Tensor: A tensor of bounding boxes in image coordinates.
+    """ """"""
     bboxes = []
     original_sizes = []
     for annotation in annotations:
@@ -728,9 +756,6 @@ def annotations_to_bbox(annotations: list[Annotation]):
                 if isinstance(r.value, RectValue)
             ]
         )
-    # if not bboxes:
-    # raise ValueError("No bounding boxes in annotation")
-    # bboxes = bboxes[:1] # HACK: #1
     return torch.stack(
         [
             torch.tensor(
@@ -761,20 +786,19 @@ def collate_fn(batch):
 
 
 def validate_dataloader(dataloader: DataLoader):
-    
+    """Runs over all items in a dataloader and validates the annotations.
+
+    Args:
+        dataloader (DataLoader): A dataloader with a collate_fn that returns a
+                                list of annotations and a list of images.
+    """ """"""
     for (images, targets) in dataloader:
         assert all(o["boxes"].shape for o in targets)
         assert all(o.shape for o in images)
         for image, target in zip(images, targets):
             height, width = image.shape[1:]
-            assert all(
-                x > 0 and x < width for x in target["boxes"][0][::2]
-            )
-            assert all(
-                y > 0 and y < height for y in target["boxes"][0][1::2]
-            )
-        # breakpoint()
-            
+            assert all(x > 0 and x < width for x in target["boxes"][0][::2])
+            assert all(y > 0 and y < height for y in target["boxes"][0][1::2])
 
 
 def get_keypoints_as_dict(
@@ -813,8 +837,23 @@ def dict_to_points(
     return np.array(list(keypoints.values())).astype(np.float32), list(keypoints.keys())
 
 
-def download_data_item(s3_uri: str, local_path: Path, s3_client=None, use_cached=True):
+def download_data_item(
+    s3_uri: str, local_path: Path, s3_client=None, use_cached=True
+) -> Path:
+    """
 
+    !!! note
+        `courtvision-padel-dataset` profile must be configured in ~/.aws/credentials
+
+    Args:
+        s3_uri (str): S3 uri to file
+        local_path (Path): Path to file on local filesystem
+        s3_client (_type_, optional): A suitable s3_client (access to s3). Defaults to None.
+        use_cached (bool, optional): If True and the file exists uses the one on disk. Defaults to True.
+
+    Returns:
+        Path: Path to the data item on local filesystem
+    """
     if use_cached and local_path.exists():
         return local_path
 
@@ -830,13 +869,6 @@ def download_data_item(s3_uri: str, local_path: Path, s3_client=None, use_cached
     with open(local_path, "wb") as fp:
         s3_client.download_fileobj(bucket_name, object_name, fp)
     return local_path
-
-
-import enum
-from hashlib import md5
-from typing import Tuple
-
-import torchvision
 
 
 class StreamType(enum.Enum):
@@ -905,10 +937,12 @@ def get_normalized_calibration_image_points_and_clip_ids(
     dataset: PadelDataset,
 ) -> tuple[dict[str, tuple[float, float]], set[str]]:
     """
-    Note: This assumes that the calibration points are the only annotations with a VideoRectValue
-    and the points of the same label are in the same place as the last one which will be used.
+    !!! note
+        This assumes that the calibration points are the only annotations with a VideoRectValue
+        and the points of the same label are in the same place as the last one which will be used.
 
-    Note: Points are normalized to 0-1. Not -1 to 1 like in kornia.
+    !!! note
+        Points are normalized to 0-1. Not -1 to 1 like in kornia.
     Args:
         dataset (PadelDataset): Dataset descibing a video with calibration points.
 
