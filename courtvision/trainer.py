@@ -11,25 +11,26 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 
 import wandb
+from courtvision.data import validate_dataloader
 from courtvision.models import (
     BallDetector,
     PlayerDetector,
     get_fasterrcnn_ball_detection_model,
 )
 from courtvision.swiss import get_latest_file
-from torchmetrics.detection.mean_ap import MeanAveragePrecision
-from courtvision.data import validate_dataloader    
 
 
 class BallDetectorModel(pl.LightningModule):
-    def __init__(self, model_path: Path = None):
+    def __init__(self, model_path: Path | None = None):
         super().__init__()
-        if model_path is not None:
+        self.model = get_fasterrcnn_ball_detection_model(
+            model_path=model_path,
+        )
 
-            self.model = get_fasterrcnn_ball_detection_model(
-                model_path=model_path,
-            )
-            self.model.train()
+        # if mode == "train":
+        #     self.model.train()
+        # else:
+        #     self.model.eval()
 
     def forward(self, x):
         output = self.model(x)
@@ -59,7 +60,7 @@ class BallDetectorModel(pl.LightningModule):
         return loss
 
     def on_validation_epoch_end(self):
-        
+
         images, targets = next(iter(self.trainer.val_dataloaders))
         images = [img.to("cuda") for img in images]
         self.eval()  # set to eval mode to get predictions
@@ -83,7 +84,6 @@ class BallDetectorModel(pl.LightningModule):
             logger=self.trainer.logger.experiment,
             global_step=self.global_step,
         )
-          
 
 
 # from typing import Any
@@ -160,9 +160,9 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from courtvision.data import CourtVisionBallDataset, CourtVisionDataset, PadelDataset
 
 if __name__ == "__main__":
-    from courtvision.config import CourtVisionSettings
+    from courtvision.config import CourtVisionTrainingSettings
 
-    settings = CourtVisionSettings()
+    settings = CourtVisionTrainingSettings()
     ANNOTATION_PATH = Path(settings.datasets_path / "ball_dataset")
     ANNOTATION_DATA_PATH = ANNOTATION_PATH / "data"
     ANNOTATION_DATA_PATH.mkdir(exist_ok=True, parents=True)
@@ -184,8 +184,10 @@ if __name__ == "__main__":
         project=settings.wb_project,
         save_dir=settings.wb_save_dir,
     )
-    
-    ball_dataset_train, balldataset_val = random_split(courtvision_dataset, [len(courtvision_dataset)-20, 20 ])
+
+    ball_dataset_train, balldataset_val = random_split(
+        courtvision_dataset, [len(courtvision_dataset) - 20, 20]
+    )
 
     train_loader = DataLoader(
         ball_dataset_train, batch_size=1, collate_fn=CourtVisionBallDataset.collate_fn
@@ -218,6 +220,6 @@ if __name__ == "__main__":
         log_every_n_steps=1,
         logger=wandb_logger,
         num_sanity_val_steps=-1,
-        callbacks=[checkpoint_weights_only]
+        callbacks=[checkpoint_weights_only],
     )
     trainer.fit(model, train_loader, val_loader)

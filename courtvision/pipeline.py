@@ -74,6 +74,7 @@ def pipeline(
 
 if __name__ == "__main__":
     # TODO: Make this a proper CLI using Typer. https://github.com/BenjaminDev/courtvision/issues/4
+
     ANNOTATION_PATH = Path("../datasets/clip_segmentations")
     ANNOTATION_DATA_PATH = Path("../datasets/clip_segmentations/data")
     ANNOTATION_DATA_PATH.mkdir(exist_ok=True, parents=True)
@@ -89,12 +90,12 @@ if __name__ == "__main__":
         dataset=dataset,
         ball_detector=BallDetector(
             model_file_or_dir=Path(
-                "/Users/benjamindecharmoy/projects/courtvision/models/ball_detector/epoch=111-step=1680.ckpt"
+                "/Users/benjamindecharmoy/projects/courtvision/models/ball_detector/epoch=7-step=368.ckpt"
             ),
             cache_dir=ANNOTATION_DATA_PATH / "cache",
         ),
         ball_tracker=ParticleFilter(
-            num_particles=10_000,
+            num_particles=100_000,
             court_size=torch.tensor(
                 [PadelCourt.width, PadelCourt.length, PadelCourt.backwall_fence_height]
             ),
@@ -110,7 +111,7 @@ if __name__ == "__main__":
     # Calibrate camera from annotations in the dataset
     artifacts = calibrate_camera(artifacts, logger=logger)
     artifacts.ball_tracker.reset(
-        num_particles=10_000,
+        num_particles=100_000,
         court_size=torch.tensor(
             [PadelCourt.width, PadelCourt.length, PadelCourt.backwall_fence_height]
         ),
@@ -120,7 +121,6 @@ if __name__ == "__main__":
     rr.init(
         "courtvision",
         spawn=False,
-        recording_id="test",
     )
     ip, port = (
         "127.0.0.1",
@@ -165,6 +165,12 @@ if __name__ == "__main__":
             clip_uid=uid,
         )
         # TODO: use variable dt for prediction. Use frame["pts"]
+        # Detect and log player detections
+        player_detections = artifacts.player_detector.predict(
+            frame["data"].unsqueeze(0),
+            frame_idx=i,
+            clip_uid=uid,
+        )
         artifacts.ball_tracker.predict(dt=1 / 30.0)
         for ball_detection in ball_detections:
             for (bx1, by1, bx2, by2), ball_score in zip(
@@ -176,30 +182,36 @@ if __name__ == "__main__":
                         (by1 + by2) / 2.0,
                     ]
                 ).to(dtype=torch.float32)
+                for _ in range(10):
+                    artifacts.ball_tracker.update(obs_state, ball_score)
+                    # TODO: Move this to a separate function in vis.py
+                    rr.log_points(
+                        "world/ball_state",
+                        positions=artifacts.ball_tracker.xyz,
+                    )
+                    rr.log_point(
+                        "world/tracker_mean",
+                        artifacts.ball_tracker.xyz_mean,
+                        color=(255, 222, 0),
+                        radius=2.0,
+                    )
+                    ball_mean_estimate = artifacts.ball_tracker.state_to_observation(
+                        artifacts.ball_tracker.xyz_mean,
+                        world_to_cam=artifacts.ball_tracker.world_to_cam,
+                        cam_to_image=artifacts.ball_tracker.cam_to_image,
+                    )
+                    rr.log_point(
+                        "world/camera/image/ball_mean_estimate",
+                        ball_mean_estimate,
+                        color=(255, 222, 0),
+                        radius=2.0,
+                    )
+                break
 
-                artifacts.ball_tracker.update(obs_state, ball_score)
-                # TODO: Move this to a separate function in vis.py
-                rr.log_points(
-                    "world/ball_state",
-                    positions=artifacts.ball_tracker.xyz,
-                )
-                rr.log_point(
-                    "world/tracker_mean",
-                    artifacts.ball_tracker.xyz_mean,
-                    color=(255, 222, 0),
-                    radius=2.0,
-                )
-
-        # Detect and log player detections
-        player_detections = artifacts.player_detector.predict(
-            frame["data"].unsqueeze(0),
-            frame_idx=i,
-            clip_uid=uid,
-        )
-        log_player_detections(
-            detections=player_detections,
-            clip_uid=uid,
-            camera_matrix=artifacts.camera_info.camera_matrix,
-            translation_vector=artifacts.camera_info.translation_vector,
-            rotation_vector=artifacts.camera_info.rotation_vector,
-        )
+        # log_player_detections(
+        #     detections=player_detections,
+        #     clip_uid=uid,
+        #     camera_matrix=artifacts.camera_info.camera_matrix,
+        #     translation_vector=artifacts.camera_info.translation_vector,
+        #     rotation_vector=artifacts.camera_info.rotation_vector,
+        # )
