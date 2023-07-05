@@ -86,14 +86,6 @@ class BallDetectorModel(pl.LightningModule):
         )
 
 
-# from typing import Any
-# def get_wandb_logger(loggers:list[Any])->pl.loggers.WandbLogger:
-#     for logger in loggers:
-#         if isinstance(logger, pl.loggers.WandbLogger):
-#             return logger
-#     raise ValueError("No WandbLogger found in loggers")
-
-
 def log_wb_image_and_bbox(
     images: torch.tensor,
     preds: list[dict[str, torch.Tensor]],
@@ -101,10 +93,16 @@ def log_wb_image_and_bbox(
     logger: wandb.sdk.wandb_run.Run,
     global_step: int,
 ):
+    """_summary_
+
+    Args:
+        images (torch.tensor): _description_
+        preds (list[dict[str, torch.Tensor]]): _description_
+        targets (list[dict[str, torch.Tensor]]): _description_
+        logger (wandb.sdk.wandb_run.Run): _description_
+        global_step (int): _description_
+    """
     images_to_log = []
-    print(f"\n\nLogging images {global_step}\n\n")
-    if len(preds) < 1:
-        breakpoint()
     for image, pred, target in zip(images, preds, targets):
         image_height, image_width = image.shape[-2:]
         images_to_log.append(

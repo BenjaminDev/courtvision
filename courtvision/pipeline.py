@@ -65,13 +65,6 @@ class Verbosity(Enum):
     DEBUG = 2
 
 
-def pipeline(
-    artifacts: CourtVisionArtifacts,
-):
-    # Calibrate camera
-    artifacts = calibrate_camera(artifacts, logger=logger)
-
-
 if __name__ == "__main__":
     # TODO: Make this a proper CLI using Typer. https://github.com/BenjaminDev/courtvision/issues/4
 
@@ -208,10 +201,10 @@ if __name__ == "__main__":
                     )
                 break
 
-        # log_player_detections(
-        #     detections=player_detections,
-        #     clip_uid=uid,
-        #     camera_matrix=artifacts.camera_info.camera_matrix,
-        #     translation_vector=artifacts.camera_info.translation_vector,
-        #     rotation_vector=artifacts.camera_info.rotation_vector,
-        # )
+        log_player_detections(
+            detections=player_detections,
+            clip_uid=uid,
+            camera_matrix=artifacts.camera_info.camera_matrix,
+            translation_vector=artifacts.camera_info.translation_vector,
+            rotation_vector=artifacts.camera_info.rotation_vector,
+        )
