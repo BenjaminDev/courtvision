@@ -8,20 +8,18 @@ jobs:
   pypi-publish:
     name: Upload release to PyPI
     runs-on: ubuntu-latest
-    # environment:
-    #   name: release
-    #   url: https://pypi.org/p/
+    environment:
+      name: release
+      url: https://pypi.org/p/courtvision
     permissions:
       id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
       contents: write
     steps:
-    # retrieve your distributions here
     - name: Set up Python
       uses: actions/setup-python@v3
     - name: Check out repository code
       uses: actions/checkout@v3
-      # with:
-          # token: ${{ secrets.ACCESS_TOKEN }}
+
     - name: Install Poetry
       run: curl -sSL https://install.python-poetry.org | python3 -
     - name: Build wheel
