@@ -1166,7 +1166,7 @@ def calibrate_camera(
         )
         return artifacts
 
-    frame, uid = next(
+    frame, uid, match_id = next(
         frames_from_clip_segments(
             artifacts.dataset,
             local_path=artifacts.local_cache_path,

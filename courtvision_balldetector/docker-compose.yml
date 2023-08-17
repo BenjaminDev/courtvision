@@ -11,7 +11,7 @@ services:
       - 6379
   server:
     container_name: server
-    build: 
+    build:
       context: .
       network: host
     environment:
@@ -34,4 +34,4 @@ services:
     ports:
       - 8080:8080
     volumes:
-      - "/mnt/vol_b/labelstudiodata/:/label-studio/data"
+      - "./labelstudiodata/:/label-studio/data"
